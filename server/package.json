@@ -1,0 +1,22 @@
+{
+  "name": "library-seat-booking-server",
+  "version": "1.0.0",
+  "description": "Backend server for Library Seat Booking",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "razorpay": "^2.9.2",
+    "crypto": "^1.0.1",
+    "firebase-admin": "^11.11.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
+

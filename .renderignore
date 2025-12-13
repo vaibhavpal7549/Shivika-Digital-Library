@@ -1,0 +1,22 @@
+# Render ignore file
+# Files and directories to exclude from deployment
+
+node_modules/
+client/node_modules/
+server/node_modules/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+client/.env
+server/.env
+*.log
+.DS_Store
+.git/
+.vscode/
+.idea/
+client/build/
+*.md
+!README.md
+

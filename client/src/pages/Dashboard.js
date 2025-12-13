@@ -5,6 +5,7 @@ import { useProfile } from '../contexts/ProfileContext';
 import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import toast from 'react-hot-toast';
+import { HOURLY_RATE } from '../utils/feeUtils';
 
 export default function Dashboard() {
   const { currentUser, logout } = useAuth();
@@ -12,12 +13,11 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [seats, setSeats] = useState({});
   const [selectedHours, setSelectedHours] = useState(1);
-  const [hourlyRate] = useState(50); // ₹50 per hour
-  const [totalFee, setTotalFee] = useState(hourlyRate);
+  const [totalFee, setTotalFee] = useState(HOURLY_RATE);
 
   useEffect(() => {
-    setTotalFee(selectedHours * hourlyRate);
-  }, [selectedHours, hourlyRate]);
+    setTotalFee(selectedHours * HOURLY_RATE);
+  }, [selectedHours]);
 
   useEffect(() => {
     const seatsRef = ref(database, 'seats');
@@ -176,14 +176,18 @@ export default function Dashboard() {
                   ))}
                 </select>
               </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-700">Hourly Rate:</span>
-                  <span className="font-semibold">₹{hourlyRate}/hr</span>
+              <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-5 rounded-xl border border-purple-200">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-gray-700 font-medium">Hourly Rate:</span>
+                  <span className="font-bold text-blue-700">₹{HOURLY_RATE}/hr</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-gray-800">Total Fee:</span>
-                  <span className="text-2xl font-bold text-purple-600">₹{totalFee}</span>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-700 font-medium">Hours:</span>
+                  <span className="font-bold text-gray-800">{selectedHours}</span>
+                </div>
+                <div className="border-t-2 border-purple-200 pt-3 flex justify-between items-center">
+                  <span className="text-lg font-bold text-gray-800">Total Fee:</span>
+                  <span className="text-3xl font-extrabold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">₹{totalFee}</span>
                 </div>
               </div>
             </div>

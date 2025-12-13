@@ -255,14 +255,14 @@ export default function Booking() {
 
           <div className="space-y-6">
             {/* Seat Info */}
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-16 h-16 bg-red-500 rounded-lg flex items-center justify-center text-white text-2xl font-bold animate-blink">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-2xl border-2 border-blue-200 shadow-lg">
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center text-white text-3xl font-bold animate-blink shadow-xl">
                   {seatNumber}
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-800">Seat Number: {seatNumber}</p>
-                  <p className="text-sm text-gray-600">Status: Vacant</p>
+                  <p className="font-bold text-xl text-gray-800">Seat Number: {seatNumber}</p>
+                  <p className="text-sm text-gray-600 font-medium">Status: Vacant • Ready to Book</p>
                 </div>
               </div>
             </div>
@@ -276,10 +276,10 @@ export default function Booking() {
                 <button
                   type="button"
                   onClick={() => setFeeCalculationMode('fixed')}
-                  className={`px-4 py-3 rounded-lg font-semibold transition ${
+                  className={`px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                     feeCalculationMode === 'fixed'
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
                   }`}
                 >
                   Fixed Monthly Fee
@@ -287,10 +287,10 @@ export default function Booking() {
                 <button
                   type="button"
                   onClick={() => setFeeCalculationMode('hourly')}
-                  className={`px-4 py-3 rounded-lg font-semibold transition ${
+                  className={`px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
                     feeCalculationMode === 'hourly'
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
                   }`}
                 >
                   Daily Hours Based
@@ -307,7 +307,7 @@ export default function Booking() {
                 <select
                   value={dailyHours}
                   onChange={(e) => setDailyHours(Number(e.target.value))}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((hour) => (
                     <option key={hour} value={hour}>
@@ -337,43 +337,43 @@ export default function Booking() {
             </div>
 
             {/* Fee Breakdown */}
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+            <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-2xl space-y-3 border border-blue-100 shadow-md">
               {feeCalculationMode === 'hourly' ? (
                 <>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Hourly Rate:</span>
-                    <span className="font-semibold">₹{HOURLY_RATE}/hour</span>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-700 font-medium">Hourly Rate:</span>
+                    <span className="font-bold text-blue-700">₹{HOURLY_RATE}/hour</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Daily Hours:</span>
-                    <span className="font-semibold">{dailyHours} hours</span>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-700 font-medium">Daily Hours:</span>
+                    <span className="font-bold text-gray-800">{dailyHours} hours</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Monthly Fee:</span>
-                    <span className="font-semibold">₹{calculateMonthlyFeeFromHours(dailyHours)}/month</span>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-700 font-medium">Monthly Fee:</span>
+                    <span className="font-bold text-blue-700">₹{calculateMonthlyFeeFromHours(dailyHours)}/month</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Months:</span>
-                    <span className="font-semibold">{selectedMonths}</span>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-700 font-medium">Months:</span>
+                    <span className="font-bold text-gray-800">{selectedMonths}</span>
                   </div>
-                  <div className="border-t pt-2 flex justify-between">
-                    <span className="text-lg font-semibold text-gray-800">Total Fee:</span>
-                    <span className="text-2xl font-bold text-purple-600">₹{totalFee}</span>
+                  <div className="border-t-2 border-blue-200 pt-4 flex justify-between items-center">
+                    <span className="text-xl font-bold text-gray-800">Total Fee:</span>
+                    <span className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">₹{totalFee}</span>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Monthly Fee:</span>
-                    <span className="font-semibold">₹{MONTHLY_FEE}/month</span>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-700 font-medium">Monthly Fee:</span>
+                    <span className="font-bold text-blue-700">₹{MONTHLY_FEE}/month</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-700">Months:</span>
-                    <span className="font-semibold">{selectedMonths}</span>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-700 font-medium">Months:</span>
+                    <span className="font-bold text-gray-800">{selectedMonths}</span>
                   </div>
-                  <div className="border-t pt-2 flex justify-between">
-                    <span className="text-lg font-semibold text-gray-800">Total Fee:</span>
-                    <span className="text-2xl font-bold text-purple-600">₹{totalFee}</span>
+                  <div className="border-t-2 border-blue-200 pt-4 flex justify-between items-center">
+                    <span className="text-xl font-bold text-gray-800">Total Fee:</span>
+                    <span className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">₹{totalFee}</span>
                   </div>
                 </>
               )}

@@ -12,6 +12,8 @@ import Profile from './pages/Profile';
 import PaymentHistory from './pages/PaymentHistory';
 import FeePayment from './pages/FeePayment';
 import './App.css';
+import './responsive.css';
+import './modern-ui.css';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {

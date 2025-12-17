@@ -6,10 +6,21 @@ import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import toast from 'react-hot-toast';
 
+/**
+ * SeatLayout Component
+ * 
+ * Displays the library seat grid with real-time availability.
+ * 
+ * ONE-SEAT-PER-USER RULE:
+ * - If user already has a booked seat, clicking other seats navigates to booking
+ *   page which handles the "Change Seat" flow
+ * - User's current seat is highlighted in a distinct blue color
+ * - Provides visual feedback for booking restrictions
+ */
 export default function SeatLayout({ seats }) {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { isProfileComplete, hasPendingDues } = useProfile();
+  const { isProfileComplete, hasPendingDues, bookedSeat, hasBookedSeat } = useProfile();
   const [userSeatNumber, setUserSeatNumber] = useState(null);
   const totalSeats = 60;
 
@@ -40,11 +51,25 @@ export default function SeatLayout({ seats }) {
 
   const handleSeatClick = (seatNumber) => {
     const status = getSeatStatus(seatNumber);
+    
+    // Profile incomplete check
+    if (!isProfileComplete) {
+      toast.error('Please complete your profile before booking a seat');
+      navigate('/profile');
+      return;
+    }
+    
+    // User's own seat - show info
+    if (userSeatNumber === seatNumber) {
+      toast('This is your currently booked seat!', { icon: '🪑' });
+      return;
+    }
+    
+    // Seat is vacant
     if (status === 'vacant') {
-      if (!isProfileComplete) {
-        toast.error('Please complete your profile before booking a seat');
-        navigate('/profile');
-        return;
+      // ONE-SEAT-PER-USER: If user has a seat, navigate to booking which handles change flow
+      if (hasBookedSeat) {
+        toast(`You already have Seat ${bookedSeat.seatNumber}. You'll be able to change seats on the next page.`, { icon: '🔄', duration: 4000 });
       }
       navigate(`/booking/${seatNumber}`);
     } else {

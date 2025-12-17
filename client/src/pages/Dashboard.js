@@ -6,6 +6,7 @@ import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import toast from 'react-hot-toast';
 import { HOURLY_RATE } from '../utils/feeUtils';
+import { GalleryButton } from '../components/Gallery';
 import { 
   User, 
   History, 
@@ -16,18 +17,33 @@ import {
   MapPin, 
   Loader2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  Smartphone,
+  Monitor,
+  Clock,
+  Image as ImageIcon
 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { currentUser, logout } = useAuth();
-  const { isProfileComplete, profile } = useProfile();
+  // Get session management functions from AuthContext
+  const { 
+    currentUser, 
+    logout, 
+    activeSessionInfo, 
+    forceLogoutOtherDevices,
+    getSessionDuration,
+    getLastActivity 
+  } = useAuth();
+  const { isProfileComplete, profile, bookedSeat, hasBookedSeat } = useProfile();
   const navigate = useNavigate();
   const [seats, setSeats] = useState({});
   const [selectedHours, setSelectedHours] = useState(1);
   const [totalFee, setTotalFee] = useState(HOURLY_RATE);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
+  const [showSessionInfo, setShowSessionInfo] = useState(false);
+  const [isForceLoggingOut, setIsForceLoggingOut] = useState(false);
 
   useEffect(() => {
     setTotalFee(selectedHours * HOURLY_RATE);
@@ -65,6 +81,31 @@ export default function Dashboard() {
     }
   };
 
+  /**
+   * Handle force logout of other devices
+   */
+  const handleForceLogoutOthers = async () => {
+    setIsForceLoggingOut(true);
+    try {
+      await forceLogoutOtherDevices();
+    } finally {
+      setIsForceLoggingOut(false);
+    }
+  };
+
+  /**
+   * Format session duration for display
+   */
+  const formatDuration = (ms) => {
+    if (!ms) return 'Unknown';
+    const minutes = Math.floor(ms / (1000 * 60));
+    const hours = Math.floor(minutes / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes % 60}m`;
+    }
+    return `${minutes}m`;
+  };
+
   const handleBookingSeat = (e) => {
     if (!isProfileComplete) {
       e.preventDefault();
@@ -92,6 +133,19 @@ export default function Dashboard() {
             
             {/* Header Actions */}
             <div className="flex gap-2 sm:gap-3">
+              {/* Session Info Toggle */}
+              <button
+                onClick={() => setShowSessionInfo(!showSessionInfo)}
+                className={`group relative inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl border transition-all duration-200 active:scale-95 shadow-sm hover:shadow-md ${
+                  showSessionInfo 
+                    ? 'bg-green-50 border-green-300' 
+                    : 'bg-white border-gray-200 hover:border-green-300 hover:bg-green-50'
+                }`}
+                aria-label="Session Info"
+                title="Session Info"
+              >
+                <Shield className={`w-5 h-5 transition-colors ${showSessionInfo ? 'text-green-600' : 'text-gray-600 group-hover:text-green-600'}`} strokeWidth={2} />
+              </button>
               <Link
                 to="/profile"
                 className="group relative inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 active:scale-95 shadow-sm hover:shadow-md"
@@ -108,6 +162,8 @@ export default function Dashboard() {
               >
                 <History className="w-5 h-5 text-gray-600 group-hover:text-purple-600 transition-colors" strokeWidth={2} />
               </Link>
+              {/* Gallery Button - View library photos */}
+              <GalleryButton className="h-10 sm:h-11 px-3 sm:px-4 py-0 text-sm" />
               <button
                 onClick={handleLogout}
                 disabled={isLoggingOut}
@@ -123,6 +179,102 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
+
+          {/* SESSION INFO PANEL - Collapsible security info */}
+          {showSessionInfo && activeSessionInfo && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6 animate-slideInDown">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Active Session</h3>
+                    <p className="text-xs text-green-600 flex items-center gap-1">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                      Secure connection
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSessionInfo(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              {/* Session Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                {/* Device Info */}
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Monitor className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-500">Device</span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800">
+                    {activeSessionInfo.deviceInfo?.browser || 'Unknown'} / {activeSessionInfo.deviceInfo?.os || 'Unknown'}
+                  </p>
+                </div>
+                
+                {/* Session Duration */}
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-500">Session Duration</span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800">
+                    {formatDuration(getSessionDuration())}
+                  </p>
+                </div>
+                
+                {/* Last Activity */}
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-500">Last Activity</span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800">
+                    {getLastActivity()?.toLocaleTimeString() || 'Just now'}
+                  </p>
+                </div>
+                
+                {/* Session Started */}
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Smartphone className="w-4 h-4 text-gray-500" />
+                    <span className="text-xs font-medium text-gray-500">Started</span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-800">
+                    {activeSessionInfo.createdAt 
+                      ? new Date(activeSessionInfo.createdAt).toLocaleTimeString()
+                      : 'Unknown'
+                    }
+                  </p>
+                </div>
+              </div>
+              
+              {/* Force Logout Other Devices */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 border-t border-gray-100">
+                <div className="text-sm text-gray-600">
+                  <p className="font-medium text-gray-700">Security Notice</p>
+                  <p className="text-xs">Only one device can be logged in at a time. New logins will end other sessions.</p>
+                </div>
+                <button
+                  onClick={handleForceLogoutOthers}
+                  disabled={isForceLoggingOut}
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-sm font-medium hover:bg-amber-200 transition-colors disabled:opacity-50"
+                >
+                  {isForceLoggingOut ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <LogOut className="w-4 h-4" />
+                  )}
+                  <span>Refresh Session</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* PROFILE ALERT - Prominent but not intrusive */}
           {!isProfileComplete && (
@@ -145,6 +297,62 @@ export default function Dashboard() {
 
           {/* PRIMARY ZONE - Hero CTA & Quick Overview */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* ============================================ */}
+            {/* YOUR BOOKED SEAT CARD - ONE-SEAT-PER-USER */}
+            {/* Shows when user has an active booking */}
+            {/* ============================================ */}
+            {hasBookedSeat && bookedSeat && (
+              <div className="md:col-span-3 bg-gradient-to-br from-green-500 via-green-600 to-emerald-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                {/* Animated Background */}
+                <div className="absolute -top-20 -right-20 w-60 h-60 bg-white/10 rounded-full blur-3xl"></div>
+                
+                <div className="relative z-10">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center text-4xl font-bold shadow-lg border border-white/30">
+                        {bookedSeat.seatNumber}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <CheckCircle className="w-5 h-5 text-green-200" />
+                          <span className="text-green-100 text-sm font-medium uppercase tracking-wide">Your Booked Seat</span>
+                        </div>
+                        <h3 className="text-2xl md:text-3xl font-bold">Seat {bookedSeat.seatNumber}</h3>
+                        <p className="text-green-100 text-sm mt-1">
+                          {bookedSeat.months} month(s) • {bookedSeat.dailyHours ? `${bookedSeat.dailyHours} hrs/day` : 'Full day'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 w-full sm:w-auto">
+                      <Link
+                        to="/seats"
+                        className="px-5 py-2.5 bg-white text-green-600 rounded-lg font-semibold hover:bg-green-50 transition text-center text-sm"
+                      >
+                        View Seat Layout
+                      </Link>
+                      <Link
+                        to="/payment-history"
+                        className="px-5 py-2.5 bg-white/20 text-white rounded-lg font-semibold hover:bg-white/30 transition text-center text-sm border border-white/30"
+                      >
+                        Payment History
+                      </Link>
+                    </div>
+                  </div>
+                  
+                  {/* One-seat-per-user info */}
+                  <div className="mt-4 bg-white/10 rounded-lg p-3 border border-white/20">
+                    <p className="text-green-100 text-xs sm:text-sm flex items-start gap-2">
+                      <span className="flex-shrink-0">ℹ️</span>
+                      <span>
+                        <strong>One seat per user:</strong> You can only have one active booking at a time. 
+                        To change seats, visit the seat layout and select a new seat.
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Primary Action Card - MAIN CTA */}
             <div className="md:col-span-2 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 rounded-2xl p-6 md:p-8 text-white shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden relative group">
               {/* Animated Background */}

@@ -4,6 +4,27 @@ import { useAuth } from '../contexts/AuthContext';
 import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 
+/**
+ * ============================================
+ * PAYMENT HISTORY COMPONENT
+ * ============================================
+ * 
+ * Displays all payment transactions for the current user.
+ * 
+ * SEAT NUMBER DISPLAY LOGIC:
+ * 1. For seat_booking payments: Shows the booked seat number
+ * 2. For fee_payment (no seat): Shows "N/A" or "Fee Only"
+ * 3. For payments without seatNumber field: Shows "None"
+ * 
+ * Data is fetched from Firebase 'payments' collection in real-time
+ * to ensure accuracy and prevent stale data.
+ * 
+ * Edge cases handled:
+ * - Payment with seatNumber = null/undefined → Shows "None"
+ * - Payment with seatNumber = 0 → Shows "None" (invalid seat)
+ * - Payment type = 'fee_payment' → Shows "Fee Only"
+ * - Payment verification failed → Shows appropriate status
+ */
 export default function PaymentHistory() {
   const { currentUser, logout } = useAuth();
   const [payments, setPayments] = useState([]);
@@ -22,7 +43,12 @@ export default function PaymentHistory() {
           id,
           ...payment,
         }))
-        .sort((a, b) => new Date(b.bookedAt) - new Date(a.bookedAt));
+        // Sort by most recent first, handle both bookedAt and paidAt fields
+        .sort((a, b) => {
+          const dateA = new Date(a.bookedAt || a.paidAt || a.createdAt || 0);
+          const dateB = new Date(b.bookedAt || b.paidAt || b.createdAt || 0);
+          return dateB - dateA;
+        });
       
       setPayments(userPayments);
       setLoading(false);
@@ -31,9 +57,14 @@ export default function PaymentHistory() {
     return () => unsubscribe();
   }, [currentUser]);
 
+  /**
+   * Format date string for display
+   * Handles missing dates gracefully
+   */
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -41,6 +72,99 @@ export default function PaymentHistory() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  /**
+   * Get the display value for seat number
+   * CONDITIONAL LOGIC:
+   * - If payment has a valid seatNumber (> 0): Show "Seat {number}"
+   * - If payment type is 'fee_payment': Show "Fee Only"
+   * - Otherwise: Show "None"
+   */
+  const getSeatDisplay = (payment) => {
+    // Check if this is a seat booking with valid seat number
+    if (payment.seatNumber && payment.seatNumber > 0) {
+      return {
+        text: `Seat ${payment.seatNumber}`,
+        className: 'bg-purple-100 text-purple-800',
+        hasIcon: true
+      };
+    }
+    
+    // Check if this is a fee-only payment (no seat associated)
+    if (payment.type === 'fee_payment') {
+      return {
+        text: 'Fee Only',
+        className: 'bg-blue-100 text-blue-800',
+        hasIcon: false
+      };
+    }
+    
+    // Default: No seat associated
+    return {
+      text: 'None',
+      className: 'bg-gray-100 text-gray-600',
+      hasIcon: false
+    };
+  };
+
+  /**
+   * Get payment status badge styling
+   * Handles different verification states
+   */
+  const getStatusBadge = (payment) => {
+    // Check verification status first
+    if (payment.verificationStatus === 'failed') {
+      return {
+        text: '✗ Failed',
+        className: 'bg-red-100 text-red-800'
+      };
+    }
+    
+    // Check payment status
+    if (payment.status === 'paid' || payment.verificationStatus === 'verified') {
+      return {
+        text: '✓ Paid',
+        className: 'bg-green-100 text-green-800'
+      };
+    }
+    
+    if (payment.status === 'pending') {
+      return {
+        text: '⏳ Pending',
+        className: 'bg-amber-100 text-amber-800'
+      };
+    }
+    
+    return {
+      text: payment.status || 'Unknown',
+      className: 'bg-gray-100 text-gray-800'
+    };
+  };
+
+  /**
+   * Get hours/months display based on payment type
+   */
+  const getDurationDisplay = (payment) => {
+    // For seat bookings, show months and daily hours
+    if (payment.type === 'seat_booking' && payment.months) {
+      if (payment.dailyHours) {
+        return `${payment.months}mo / ${payment.dailyHours}hr/day`;
+      }
+      return `${payment.months} month(s)`;
+    }
+    
+    // For fee payments with months
+    if (payment.months) {
+      return `${payment.months} month(s)`;
+    }
+    
+    // Legacy: hours field
+    if (payment.hours) {
+      return `${payment.hours} ${payment.hours === 1 ? 'Hour' : 'Hours'}`;
+    }
+    
+    return 'N/A';
   };
 
   if (loading) {
@@ -113,40 +237,48 @@ export default function PaymentHistory() {
                 <thead className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
                   <tr>
                     <th className="px-6 py-4 text-left font-semibold">Date</th>
-                    <th className="px-6 py-4 text-left font-semibold">Seat Number</th>
-                    <th className="px-6 py-4 text-left font-semibold">Hours</th>
+                    <th className="px-6 py-4 text-left font-semibold">Seat</th>
+                    <th className="px-6 py-4 text-left font-semibold">Duration</th>
                     <th className="px-6 py-4 text-left font-semibold">Amount</th>
                     <th className="px-6 py-4 text-left font-semibold">Status</th>
                     <th className="px-6 py-4 text-left font-semibold">Payment ID</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {payments.map((payment) => (
-                    <tr key={payment.id} className="border-b hover:bg-gray-50">
-                      <td className="px-6 py-4 text-gray-800">
-                        {formatDate(payment.bookedAt)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full font-semibold">
-                          Seat {payment.seatNumber}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-800">
-                        {payment.hours} {payment.hours === 1 ? 'Hour' : 'Hours'}
-                      </td>
-                      <td className="px-6 py-4 text-gray-800 font-semibold">
-                        ₹{payment.amount}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">
-                          ✓ Paid
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-600 text-sm font-mono">
-                        {payment.paymentId?.substring(0, 20)}...
-                      </td>
-                    </tr>
-                  ))}
+                  {payments.map((payment) => {
+                    const seatDisplay = getSeatDisplay(payment);
+                    const statusBadge = getStatusBadge(payment);
+                    
+                    return (
+                      <tr key={payment.id} className="border-b hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 text-gray-800">
+                          {formatDate(payment.bookedAt || payment.paidAt || payment.createdAt)}
+                        </td>
+                        <td className="px-6 py-4">
+                          {/* CONDITIONAL SEAT NUMBER DISPLAY */}
+                          <span className={`${seatDisplay.className} px-3 py-1 rounded-full font-semibold inline-flex items-center gap-1`}>
+                            {seatDisplay.hasIcon && <span>🪑</span>}
+                            {seatDisplay.text}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-gray-800">
+                          {getDurationDisplay(payment)}
+                        </td>
+                        <td className="px-6 py-4 text-gray-800 font-semibold">
+                          ₹{payment.amount || 0}
+                        </td>
+                        <td className="px-6 py-4">
+                          {/* CONDITIONAL STATUS BADGE */}
+                          <span className={`${statusBadge.className} px-3 py-1 rounded-full font-semibold`}>
+                            {statusBadge.text}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600 text-sm font-mono">
+                          {payment.paymentId ? `${payment.paymentId.substring(0, 20)}...` : 'N/A'}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -159,19 +291,19 @@ export default function PaymentHistory() {
             <h3 className="text-xl font-bold text-gray-800 mb-4">Summary</h3>
             <div className="grid md:grid-cols-3 gap-4">
               <div className="bg-purple-50 p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Total Bookings</p>
+                <p className="text-gray-600 text-sm">Total Transactions</p>
                 <p className="text-2xl font-bold text-purple-600">{payments.length}</p>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
                 <p className="text-gray-600 text-sm">Total Amount Paid</p>
                 <p className="text-2xl font-bold text-green-600">
-                  ₹{payments.reduce((sum, p) => sum + (p.amount || 0), 0)}
+                  ₹{payments.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()}
                 </p>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Total Hours Booked</p>
+                <p className="text-gray-600 text-sm">Seat Bookings</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {payments.reduce((sum, p) => sum + (p.hours || 0), 0)} Hours
+                  {payments.filter(p => p.seatNumber && p.seatNumber > 0).length}
                 </p>
               </div>
             </div>

@@ -43,7 +43,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
 
-  const { login, signup, signInWithGoogle } = useAuth();
+  // Get session-related state from AuthContext
+  const { login, signup, signInWithGoogle, sessionBlocked, blockReason } = useAuth();
   const navigate = useNavigate();
 
   // ============================================
@@ -115,6 +116,25 @@ export default function Login() {
           Clean, modern SaaS-quality design
           ======================================== */}
       <div className="w-full max-w-md relative z-10 animate-fadeIn">
+        {/* ========================================
+            SESSION BLOCKED ALERT
+            Shown when user was logged out from another device
+            ======================================== */}
+        {sessionBlocked && blockReason && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4 animate-fadeIn">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-amber-800 mb-1">Session Ended</h3>
+                <p className="text-sm text-amber-700">{blockReason}</p>
+                <p className="text-xs text-amber-600 mt-2">Please sign in again to continue.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
           
           {/* Gradient Top Border - Brand identity */}

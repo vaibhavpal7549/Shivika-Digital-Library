@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import toast from 'react-hot-toast';
 import { getDaysRemaining } from '../utils/feeUtils';
+import { GalleryButton } from '../components/Gallery';
 import { 
   User, 
   Edit3, 
@@ -24,7 +25,8 @@ import {
   Armchair,
   Save,
   Loader2,
-  Shield
+  Shield,
+  Image as ImageIcon
 } from 'lucide-react';
 
 /**
@@ -72,7 +74,16 @@ import {
 
 export default function Profile() {
   const { currentUser, logout } = useAuth();
-  const { profile, updateProfile, feeStatus, hasPendingDues } = useProfile();
+  const { 
+    profile, 
+    updateProfile, 
+    feeStatus, 
+    hasPendingDues,
+    // Booked seat data from ProfileContext (single source of truth)
+    bookedSeat,
+    bookedSeatLoading,
+    hasBookedSeat
+  } = useProfile();
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -224,7 +235,10 @@ export default function Profile() {
                 </div>
                 
                 {/* Header Actions */}
-                <div className="flex gap-2 sm:gap-3 sm:pb-2">
+                <div className="flex gap-2 sm:gap-3 sm:pb-2 flex-wrap">
+                  {/* Gallery Button - Opens library photo gallery */}
+                  <GalleryButton className="text-sm sm:text-base" />
+                  
                   <Link
                     to="/dashboard"
                     className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all duration-200 active:scale-95 shadow-sm hover:shadow-md text-sm sm:text-base"
@@ -327,6 +341,123 @@ export default function Profile() {
                     <Shield className="w-5 h-5 text-green-600" strokeWidth={2} />
                     <span className="font-semibold text-green-700">Fee Active</span>
                   </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ============================================ */}
+          {/* BOOKED SEAT CARD - Shows user's current booking */}
+          {/* ============================================ */}
+          {/* 
+            CONDITIONAL LOGIC EXPLANATION:
+            1. bookedSeatLoading: Shows loading spinner while fetching seat data
+            2. hasBookedSeat (bookedSeat exists): Shows seat number with booking details
+            3. !hasBookedSeat: Shows "No seat booked" with CTA to book
+            
+            Data comes from ProfileContext which fetches from Firebase 'seats' collection
+            in real-time. This ensures:
+            - No stale data on page refresh or direct navigation
+            - Immediate updates when booking status changes
+            - Single source of truth prevents inconsistencies
+          */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-5 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                {/* Seat Info */}
+                <div className="flex items-start gap-4">
+                  {/* Seat Icon */}
+                  <div className={`p-3 rounded-xl ${
+                    bookedSeatLoading 
+                      ? 'bg-gray-100 animate-pulse' 
+                      : hasBookedSeat 
+                        ? 'bg-purple-100' 
+                        : 'bg-gray-100'
+                  }`}>
+                    <Armchair className={`w-6 h-6 ${
+                      bookedSeatLoading 
+                        ? 'text-gray-400' 
+                        : hasBookedSeat 
+                          ? 'text-purple-600' 
+                          : 'text-gray-400'
+                    }`} strokeWidth={2} />
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Booked Seat</h3>
+                    
+                    {/* Conditional Seat Number Display */}
+                    {bookedSeatLoading ? (
+                      // Loading state - prevents showing incorrect data during fetch
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-6 bg-gray-200 rounded animate-pulse"></div>
+                        <span className="text-sm text-gray-400">Loading...</span>
+                      </div>
+                    ) : hasBookedSeat ? (
+                      // User has a confirmed booked seat
+                      <>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center px-4 py-1.5 rounded-full text-lg font-bold bg-purple-100 text-purple-700">
+                            🪑 Seat {bookedSeat.seatNumber}
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            ✓ Confirmed
+                          </span>
+                        </div>
+                        
+                        {/* Booking Details */}
+                        <div className="mt-2 text-sm text-gray-600 space-y-1">
+                          {bookedSeat.months && (
+                            <p>Duration: <span className="font-medium text-gray-800">{bookedSeat.months} month(s)</span></p>
+                          )}
+                          {bookedSeat.dailyHours && (
+                            <p>Daily Hours: <span className="font-medium text-gray-800">{bookedSeat.dailyHours} hrs/day</span></p>
+                          )}
+                          {bookedSeat.bookedAt && (
+                            <p>Booked: <span className="font-medium text-gray-800">
+                              {new Date(bookedSeat.bookedAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </span></p>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      // User has NOT booked any seat
+                      <div>
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
+                          No seat booked
+                        </span>
+                        <p className="text-sm text-gray-500 mt-2">
+                          You haven't booked a seat yet. Book one to reserve your study space.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Book/View Seat CTA */}
+                {!bookedSeatLoading && (
+                  hasBookedSeat ? (
+                    <Link
+                      to="/dashboard"
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-purple-100 text-purple-700 font-semibold hover:bg-purple-200 transition-all duration-200 active:scale-95 text-sm"
+                    >
+                      <Armchair className="w-4 h-4" strokeWidth={2} />
+                      <span>View Dashboard</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/seats"
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white font-semibold hover:from-purple-600 hover:to-purple-700 transition-all duration-200 active:scale-95 shadow-md hover:shadow-lg text-sm"
+                    >
+                      <Armchair className="w-4 h-4" strokeWidth={2} />
+                      <span>Book a Seat</span>
+                      <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
+                    </Link>
+                  )
                 )}
               </div>
             </div>

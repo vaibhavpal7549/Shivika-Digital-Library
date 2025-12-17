@@ -6,9 +6,20 @@ import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import SeatLayout from '../components/SeatLayout';
 
+/**
+ * SeatViewer Component
+ * 
+ * Displays the library seat layout with real-time availability.
+ * 
+ * ONE-SEAT-PER-USER FEATURES:
+ * - Shows "Your Booked Seat" card if user has a seat
+ * - Displays seat number prominently
+ * - Provides "Change Seat" information
+ * - Profile completion check before allowing booking
+ */
 export default function SeatViewer() {
   const { logout } = useAuth();
-  const { isProfileComplete } = useProfile();
+  const { isProfileComplete, bookedSeat, hasBookedSeat, bookedSeatLoading } = useProfile();
   const [seats, setSeats] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -91,6 +102,63 @@ export default function SeatViewer() {
               >
                 Complete
               </Link>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================ */}
+        {/* YOUR BOOKED SEAT CARD - ONE-SEAT-PER-USER */}
+        {/* Shows prominently if user already has a seat */}
+        {/* ============================================ */}
+        {hasBookedSeat && bookedSeat && (
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 p-4 sm:p-6 mb-4 sm:mb-6 rounded-xl shadow-lg">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg">
+                  {bookedSeat.seatNumber}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg sm:text-xl">✅</span>
+                    <h3 className="text-lg sm:text-xl font-bold text-green-800">Your Booked Seat</h3>
+                  </div>
+                  <p className="text-green-700 text-sm sm:text-base mt-1">
+                    <span className="font-semibold">Seat {bookedSeat.seatNumber}</span> • {bookedSeat.months} month(s)
+                    {bookedSeat.dailyHours && ` • ${bookedSeat.dailyHours} hrs/day`}
+                  </p>
+                  <p className="text-green-600 text-xs sm:text-sm mt-1">
+                    Booked on: {new Date(bookedSeat.bookedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 w-full sm:w-auto">
+                <Link
+                  to="/dashboard"
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition text-center text-sm sm:text-base"
+                >
+                  View Dashboard
+                </Link>
+              </div>
+            </div>
+            {/* One-seat-per-user notice */}
+            <div className="mt-4 bg-white/50 rounded-lg p-3 border border-green-200">
+              <p className="text-green-700 text-xs sm:text-sm flex items-start gap-2">
+                <span className="flex-shrink-0">ℹ️</span>
+                <span>
+                  <strong>One seat per user:</strong> You can only have one seat booked at a time. 
+                  To change seats, click on a vacant (red) seat and follow the "Change Seat" flow.
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Loading booked seat */}
+        {bookedSeatLoading && (
+          <div className="bg-gray-50 border border-gray-200 p-4 mb-4 sm:mb-6 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+              <p className="text-gray-600 text-sm">Checking your booking status...</p>
             </div>
           </div>
         )}

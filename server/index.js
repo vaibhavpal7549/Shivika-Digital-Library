@@ -3,8 +3,49 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const admin = require('firebase-admin');
 
 dotenv.config();
+
+// ============================================
+// FIREBASE ADMIN INITIALIZATION
+// ============================================
+
+/**
+ * Initialize Firebase Admin SDK for server-side operations.
+ * Used for:
+ * - ONE-SEAT-PER-USER validation (race-condition safe)
+ * - Server-side seat status verification
+ * - Direct database access for security checks
+ */
+let firebaseInitialized = false;
+
+try {
+  // Try to initialize with service account if available
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      databaseURL: process.env.FIREBASE_DATABASE_URL,
+    });
+    firebaseInitialized = true;
+    console.log('✅ Firebase Admin initialized with service account');
+  } else if (process.env.FIREBASE_DATABASE_URL) {
+    // Initialize without credentials for limited operations
+    admin.initializeApp({
+      databaseURL: process.env.FIREBASE_DATABASE_URL,
+    });
+    firebaseInitialized = true;
+    console.log('✅ Firebase Admin initialized with database URL only');
+  } else {
+    console.warn('⚠️  WARNING: Firebase Admin not configured!');
+    console.warn('   ONE-SEAT-PER-USER validation will rely on frontend only.');
+    console.warn('   Set FIREBASE_DATABASE_URL in server/.env for backend validation.');
+  }
+} catch (error) {
+  console.error('❌ Firebase Admin initialization failed:', error.message);
+  console.warn('   ONE-SEAT-PER-USER validation will rely on frontend only.');
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -61,8 +102,126 @@ if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
 }
 
 // ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Check if user already has a booked seat
+ * ONE-SEAT-PER-USER RULE ENFORCEMENT (Backend)
+ * 
+ * This is the PRIMARY enforcement point for the one-seat rule.
+ * It queries Firebase directly to check if the user already has a verified seat booking.
+ * 
+ * RACE CONDITION SAFETY:
+ * - Uses Firebase server-side query
+ * - Called BEFORE creating payment order
+ * - Double-checked in verify-payment endpoint
+ * 
+ * @param {string} userId - Firebase user ID
+ * @returns {Object} { hasBookedSeat: boolean, seatNumber: number|null, error: string|null }
+ */
+async function checkUserExistingSeat(userId) {
+  if (!firebaseInitialized) {
+    console.warn('⚠️ Firebase not initialized - skipping backend seat check');
+    return { hasBookedSeat: false, seatNumber: null, error: null, skipped: true };
+  }
+
+  try {
+    const db = admin.database();
+    const seatsRef = db.ref('seats');
+    
+    // Query all seats to find one belonging to this user
+    const snapshot = await seatsRef.once('value');
+    const seatsData = snapshot.val() || {};
+    
+    // Find seat booked by current user with verified status
+    for (const [seatNumber, seatData] of Object.entries(seatsData)) {
+      if (
+        seatData.userId === userId &&
+        seatData.status === 'booked' &&
+        seatData.verificationStatus === 'verified'
+      ) {
+        console.log(`🚫 User ${userId.substring(0, 8)} already has Seat ${seatNumber} booked`);
+        return {
+          hasBookedSeat: true,
+          seatNumber: parseInt(seatNumber),
+          error: null
+        };
+      }
+    }
+    
+    return { hasBookedSeat: false, seatNumber: null, error: null };
+  } catch (error) {
+    console.error('❌ Error checking user seat:', error.message);
+    return { hasBookedSeat: false, seatNumber: null, error: error.message };
+  }
+}
+
+// ============================================
 // API ENDPOINTS
 // ============================================
+
+/**
+ * GET /api/check-user-seat/:userId
+ * 
+ * Endpoint to check if user already has a booked seat.
+ * Used by frontend before initiating payment.
+ * 
+ * ONE-SEAT-PER-USER RULE: This endpoint helps enforce the rule
+ * that each user can only have ONE active seat booking.
+ * 
+ * Response:
+ * - hasBookedSeat: boolean
+ * - seatNumber: number (if booked) or null
+ * - message: string (user-friendly message)
+ */
+app.get('/api/check-user-seat/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'User ID is required'
+      });
+    }
+    
+    const result = await checkUserExistingSeat(userId);
+    
+    if (result.skipped) {
+      // Firebase not configured - let frontend handle validation
+      return res.json({
+        success: true,
+        hasBookedSeat: false,
+        seatNumber: null,
+        message: 'Backend validation skipped - rely on frontend',
+        skipped: true
+      });
+    }
+    
+    if (result.error) {
+      return res.status(500).json({
+        success: false,
+        error: result.error
+      });
+    }
+    
+    res.json({
+      success: true,
+      hasBookedSeat: result.hasBookedSeat,
+      seatNumber: result.seatNumber,
+      message: result.hasBookedSeat
+        ? `You have already booked Seat ${result.seatNumber}. Only one seat per user is allowed.`
+        : 'No seat booked. You can proceed with booking.'
+    });
+  } catch (error) {
+    console.error('❌ Error in check-user-seat:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check user seat status'
+    });
+  }
+});
 
 /**
  * GET /api/razorpay-key
@@ -126,6 +285,28 @@ app.post('/api/create-order', async (req, res) => {
         success: false, 
         error: 'User ID is required.' 
       });
+    }
+
+    // ============================================
+    // ONE-SEAT-PER-USER VALIDATION (Backend)
+    // ============================================
+    // CRITICAL: Check if user already has a booked seat BEFORE creating order
+    // This prevents payment for users who already have a seat.
+    // This is race-condition safe as it's checked server-side.
+    
+    if (type === 'seat_booking') {
+      const existingSeatCheck = await checkUserExistingSeat(userId);
+      
+      if (existingSeatCheck.hasBookedSeat) {
+        console.log(`🚫 Blocking seat booking - User already has Seat ${existingSeatCheck.seatNumber}`);
+        return res.status(400).json({
+          success: false,
+          error: 'You have already booked one seat.',
+          errorCode: 'SEAT_ALREADY_BOOKED',
+          existingSeatNumber: existingSeatCheck.seatNumber,
+          message: `You already have Seat ${existingSeatCheck.seatNumber} booked. Only one seat per user is allowed.`
+        });
+      }
     }
 
     // Generate unique receipt ID

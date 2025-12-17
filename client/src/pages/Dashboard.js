@@ -181,7 +181,7 @@ export default function Dashboard() {
           </div>
 
           {/* SESSION INFO PANEL - Collapsible security info */}
-          {showSessionInfo && activeSessionInfo && (
+          {showSessionInfo && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6 animate-slideInDown">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -213,7 +213,7 @@ export default function Dashboard() {
                     <span className="text-xs font-medium text-gray-500">Device</span>
                   </div>
                   <p className="text-sm font-semibold text-gray-800">
-                    {activeSessionInfo.deviceInfo?.browser || 'Unknown'} / {activeSessionInfo.deviceInfo?.os || 'Unknown'}
+                    {activeSessionInfo?.deviceInfo?.browser || 'Unknown'} / {activeSessionInfo?.deviceInfo?.os || 'Unknown'}
                   </p>
                 </div>
                 
@@ -246,7 +246,7 @@ export default function Dashboard() {
                     <span className="text-xs font-medium text-gray-500">Started</span>
                   </div>
                   <p className="text-sm font-semibold text-gray-800">
-                    {activeSessionInfo.createdAt 
+                    {activeSessionInfo?.createdAt 
                       ? new Date(activeSessionInfo.createdAt).toLocaleTimeString()
                       : 'Unknown'
                     }

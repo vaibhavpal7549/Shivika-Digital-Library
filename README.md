@@ -8,7 +8,7 @@ A complete full-stack real-time library seat booking system with payment integra
 
 Check out the live version of the project:
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Here-blue)](https://vaibhavpal.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Here-blue)](https://shivika-digital-library-frontend.onrender.com/)
 
 ---
 

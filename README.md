@@ -2,6 +2,16 @@
 
 A complete full-stack real-time library seat booking system with payment integration, multi-authentication, and live seat status updates. Your gateway to knowledge and learning.
 
+---
+
+## Live Demo
+
+Check out the live version of the project:
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Here-blue)](https://vaibhavpal.vercel.app/)
+
+---
+
 ## ✨ Features
 
 - 🪑 **60 Seats Layout** - Visual library-style seat arrangement

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import { 
   Mail, 
   Lock, 
@@ -15,6 +16,9 @@ import {
   AlertCircle,
   User
 } from 'lucide-react';
+
+// Get API URL from environment or default
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 /**
  * Enhanced Login Component
@@ -38,14 +42,28 @@ export default function Login() {
   const [activeTab, setActiveTab] = useState('google'); // Changed default to Google for better UX
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
 
   // Get session-related state from AuthContext
-  const { login, signup, signInWithGoogle, sessionBlocked, blockReason } = useAuth();
+  const { login, signInWithGoogle, sessionBlocked, blockReason } = useAuth();
   const navigate = useNavigate();
+
+  /**
+   * Check if user is registered in MongoDB
+   */
+  const checkUserRegistration = async (firebaseUid) => {
+    try {
+      const response = await axios.get(`${API_URL}/api/users/${firebaseUid}`);
+      return response.data.success && response.data.user;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        return false;
+      }
+      throw error;
+    }
+  };
 
   // ============================================
   // EVENT HANDLERS - Original logic preserved
@@ -62,15 +80,39 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      if (isSignUp) {
-        await signup(email, password);
-        // Toast handled in AuthContext.signup()
-      } else {
-        await login(email, password);
-        // Toast handled in AuthContext.login()
+      console.log('Logging in with email...');
+      const result = await login(email, password);
+      console.log('Login successful:', result?.user?.uid);
+      
+      // Check if user is registered in MongoDB
+      if (result && result.user) {
+        console.log('Checking MongoDB registration...');
+        const isRegistered = await checkUserRegistration(result.user.uid);
+        console.log('User registered in MongoDB:', isRegistered);
+        
+        if (!isRegistered) {
+          // Redirect to signup to complete profile
+          console.log('User not registered in MongoDB, redirecting to profile completion');
+          navigate('/signup', {
+            state: {
+              needsProfileCompletion: true,
+              firebaseUser: {
+                uid: result.user.uid,
+                email: result.user.email,
+                displayName: result.user.displayName,
+                photoURL: result.user.photoURL
+              }
+            }
+          });
+          return;
+        }
       }
+      
+      toast.success('Logged in successfully!');
       navigate('/dashboard');
     } catch (error) {
+      console.error('Login error:', error);
+      // Error toast is already shown by AuthContext login function
       setIsLoading(false);
     }
   };
@@ -78,16 +120,54 @@ export default function Login() {
   /**
    * Handle Google Sign-In
    * 
-   * NOTE: Toast notification is handled in AuthContext.signInWithGoogle()
-   * to prevent duplicate "Signed in with Google!" messages.
+   * NOTE: Checks MongoDB registration and redirects to signup if needed.
    */
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      await signInWithGoogle();
-      // Toast handled in AuthContext.signInWithGoogle()
-      navigate('/dashboard');
+      console.log('🔵 Login.js: Initiating Google Sign-In...');
+      const result = await signInWithGoogle();
+      
+      // Check if user is registered in MongoDB and sync Google profile data
+      if (result && result.user) {
+        console.log('✅ Login.js: Google Auth successful, checking MongoDB...');
+        try {
+          console.log('🔵 Login.js: Calling /auth/login endpoint...');
+          await axios.post(`${API_URL}/auth/login`, {
+            firebaseUid: result.user.uid,
+            email: result.user.email,
+            fullName: result.user.displayName,
+            photoURL: result.user.photoURL
+          });
+          
+          console.log('✅ Login.js: Backend login successful');
+          toast.success('Logged in with Google!');
+          navigate('/dashboard');
+        } catch (error) {
+          console.error('❌ Login.js: Backend login error:', error);
+          if (error.response?.status === 404) {
+            console.log('ℹ️ Login.js: User needs registration, redirecting...');
+            // User not found in MongoDB, redirect to signup to complete profile
+            navigate('/signup', {
+              state: {
+                needsProfileCompletion: true,
+                firebaseUser: {
+                  uid: result.user.uid,
+                  email: result.user.email,
+                  displayName: result.user.displayName,
+                  photoURL: result.user.photoURL
+                }
+              }
+            });
+          } else {
+            console.error('Login check error:', error);
+            const errorMessage = error.response?.data?.error || error.message || 'Failed to verify account';
+            toast.error(`Verification failed: ${errorMessage}`);
+          }
+        }
+      }
     } catch (error) {
+      console.error('❌ Login.js: Google Sign-In Error:', error);
       setIsLoading(false);
     }
   };
@@ -159,16 +239,7 @@ export default function Login() {
               
               {/* Dynamic Subtitle */}
               <p className="text-gray-600 text-sm sm:text-base flex items-center justify-center gap-2">
-                {isSignUp ? (
-                  <>
-                    <User className="w-4 h-4 text-purple-500" />
-                    <span>Create your account</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Welcome back! Sign in to continue</span>
-                  </>
-                )}
+                <span>Welcome back! Sign in to continue</span>
               </p>
             </div>
 
@@ -293,16 +364,17 @@ export default function Login() {
                     onFocus={() => setFocusedField('email')}
                     onBlur={() => setFocusedField(null)}
                     required
-                    className={`w-full px-4 py-4 pl-4 border-2 rounded-xl text-gray-900 placeholder-transparent focus:outline-none transition-all duration-200 ${
+                    className={`w-full px-4 py-4 pl-4 border-2 rounded-xl text-gray-900 placeholder-transparent focus:outline-none transition-all duration-300 pointer-events-auto bg-gray-50/50 hover:bg-white ${
                       focusedField === 'email' 
-                        ? 'border-blue-500 ring-4 ring-blue-100' 
+                        ? 'border-blue-500 bg-white shadow-lg shadow-blue-500/20' 
                         : email && isEmailValid 
-                          ? 'border-green-400' 
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-green-400 bg-green-50/30' 
+                          : 'border-gray-200 hover:border-blue-200 hover:shadow-md'
                     }`}
                     placeholder="Email Address"
                     disabled={isLoading}
                     aria-label="Email Address"
+                    autoComplete="email"
                   />
                   {/* Validation Icon */}
                   {email && (
@@ -336,15 +408,16 @@ export default function Login() {
                     onBlur={() => setFocusedField(null)}
                     required
                     minLength={6}
-                    className={`w-full px-4 py-4 pr-12 border-2 rounded-xl text-gray-900 placeholder-transparent focus:outline-none transition-all duration-200 ${
+                    className={`w-full px-4 py-4 pr-12 border-2 rounded-xl text-gray-900 placeholder-transparent focus:outline-none transition-all duration-300 pointer-events-auto bg-gray-50/50 hover:bg-white ${
                       focusedField === 'password' 
-                        ? 'border-blue-500 ring-4 ring-blue-100' 
+                        ? 'border-blue-500 bg-white shadow-lg shadow-blue-500/20' 
                         : password && isPasswordValid 
-                          ? 'border-green-400' 
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-green-400 bg-green-50/30' 
+                          : 'border-gray-200 hover:border-blue-200 hover:shadow-md'
                     }`}
                     placeholder="Password"
                     disabled={isLoading}
+                    autoComplete="current-password"
                     aria-label="Password"
                   />
                   
@@ -380,37 +453,28 @@ export default function Login() {
                       ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 active:scale-[0.98]'
                       : 'bg-gray-300 cursor-not-allowed'
                   }`}
-                  aria-label={isSignUp ? 'Create Account' : 'Sign In'}
+                  aria-label="Sign In"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Processing...</span>
+                      <span>Signing In...</span>
                     </>
                   ) : (
                     <>
-                      <span>{isSignUp ? 'Create Account' : 'Sign In'}</span>
+                      <span>Sign In</span>
                       <span className="text-lg">→</span>
                     </>
                   )}
                 </button>
 
-                {/* Toggle Sign Up / Sign In */}
-                <button
-                  type="button"
-                  onClick={() => setIsSignUp(!isSignUp)}
-                  className="w-full py-3 text-sm text-gray-600 hover:text-blue-600 transition-colors font-medium"
+                {/* Link to Sign Up Page */}
+                <Link
+                  to="/signup"
+                  className="w-full py-3 text-sm text-gray-600 hover:text-blue-600 transition-colors font-medium flex items-center justify-center gap-1"
                 >
-                  {isSignUp ? (
-                    <span className="flex items-center justify-center gap-1">
-                      Already have an account? <span className="text-blue-600 font-semibold">Sign In</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center gap-1">
-                      Don't have an account? <span className="text-blue-600 font-semibold">Sign Up</span>
-                    </span>
-                  )}
-                </button>
+                  Don't have an account? <span className="text-blue-600 font-semibold">Sign Up</span>
+                </Link>
               </form>
             )}
 

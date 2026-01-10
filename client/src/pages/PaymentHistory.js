@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
+import axios from 'axios';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 /**
  * ============================================
@@ -11,13 +14,13 @@ import { ref, onValue } from 'firebase/database';
  * 
  * Displays all payment transactions for the current user.
  * 
+ * DATA SOURCE: MongoDB via API (source of truth)
+ * Firebase listener kept for real-time UI updates only.
+ * 
  * SEAT NUMBER DISPLAY LOGIC:
  * 1. For seat_booking payments: Shows the booked seat number
  * 2. For fee_payment (no seat): Shows "N/A" or "Fee Only"
  * 3. For payments without seatNumber field: Shows "None"
- * 
- * Data is fetched from Firebase 'payments' collection in real-time
- * to ensure accuracy and prevent stale data.
  * 
  * Edge cases handled:
  * - Payment with seatNumber = null/undefined → Shows "None"
@@ -26,36 +29,54 @@ import { ref, onValue } from 'firebase/database';
  * - Payment verification failed → Shows appropriate status
  */
 export default function PaymentHistory() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser } = useAuth();
   const [payments, setPayments] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Fetch payments from MongoDB API (source of truth)
+  const fetchPayments = useCallback(async () => {
+    if (!currentUser?.uid) return;
+    
+    try {
+      setError(null);
+      const [paymentsRes, statsRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/payments/user/${currentUser.uid}`),
+        axios.get(`${API_BASE_URL}/api/payments/stats/${currentUser.uid}`)
+      ]);
+      
+      if (paymentsRes.data.success) {
+        setPayments(paymentsRes.data.payments || []);
+      }
+      if (statsRes.data.success) {
+        setStats(statsRes.data.stats);
+      }
+    } catch (err) {
+      console.error('Error fetching payments from API:', err);
+      setError('Failed to load payment history');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser?.uid]);
+
+  // Initial fetch from MongoDB
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
+
+  // Firebase listener for real-time updates (triggers re-fetch)
   useEffect(() => {
     if (!currentUser) return;
 
     const paymentsRef = ref(database, 'payments');
-    const unsubscribe = onValue(paymentsRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      // Filter payments for current user
-      const userPayments = Object.entries(data)
-        .filter(([_, payment]) => payment.userId === currentUser.uid)
-        .map(([id, payment]) => ({
-          id,
-          ...payment,
-        }))
-        // Sort by most recent first, handle both bookedAt and paidAt fields
-        .sort((a, b) => {
-          const dateA = new Date(a.bookedAt || a.paidAt || a.createdAt || 0);
-          const dateB = new Date(b.bookedAt || b.paidAt || b.createdAt || 0);
-          return dateB - dateA;
-        });
-      
-      setPayments(userPayments);
-      setLoading(false);
+    const unsubscribe = onValue(paymentsRef, () => {
+      // When Firebase updates, re-fetch from MongoDB for consistency
+      fetchPayments();
     });
 
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [currentUser, fetchPayments]);
 
   /**
    * Format date string for display
@@ -175,6 +196,22 @@ export default function PaymentHistory() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-xl text-red-600 mb-4">{error}</div>
+          <button
+            onClick={fetchPayments}
+            className="bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-purple-700 transition"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen p-4">
       <div className="max-w-6xl mx-auto">
@@ -207,12 +244,6 @@ export default function PaymentHistory() {
               >
                 Profile
               </Link>
-              <button
-                onClick={logout}
-                className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg font-semibold hover:bg-gray-300 transition"
-              >
-                Logout
-              </button>
             </div>
           </div>
         </div>
@@ -285,25 +316,33 @@ export default function PaymentHistory() {
           </div>
         )}
 
-        {/* Summary */}
+        {/* Summary - Uses stats from MongoDB API */}
         {payments.length > 0 && (
           <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-xl p-6 mt-6 border border-blue-100">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Summary</h3>
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-4 gap-4">
               <div className="bg-purple-50 p-4 rounded-lg">
                 <p className="text-gray-600 text-sm">Total Transactions</p>
-                <p className="text-2xl font-bold text-purple-600">{payments.length}</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {stats?.totalPaymentsCount || payments.length}
+                </p>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
                 <p className="text-gray-600 text-sm">Total Amount Paid</p>
                 <p className="text-2xl font-bold text-green-600">
-                  ₹{payments.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()}
+                  ₹{(stats?.totalAmountPaid || payments.reduce((sum, p) => sum + (p.amount || 0), 0)).toLocaleString()}
                 </p>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-gray-600 text-sm">Seat Bookings</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {payments.filter(p => p.seatNumber && p.seatNumber > 0).length}
+                  {stats?.seatPaymentsCount || payments.filter(p => p.seatNumber && p.seatNumber > 0).length}
+                </p>
+              </div>
+              <div className="bg-amber-50 p-4 rounded-lg">
+                <p className="text-gray-600 text-sm">Fee Payments</p>
+                <p className="text-2xl font-bold text-amber-600">
+                  {stats?.feePaymentsCount || payments.filter(p => p.type === 'fee_payment').length}
                 </p>
               </div>
             </div>

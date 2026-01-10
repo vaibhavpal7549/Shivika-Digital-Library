@@ -376,6 +376,7 @@ export function AuthProvider({ children }) {
   /**
    * Email/Password Sign Up
    * Creates account and establishes session
+   * Returns the userCredential for further processing
    */
   async function signup(email, password) {
     try {
@@ -384,7 +385,8 @@ export function AuthProvider({ children }) {
       // Create session for new user
       await createSession(userCredential.user.uid);
       
-      toast.success('Account created successfully!');
+      // Return userCredential for MongoDB registration
+      return userCredential;
     } catch (error) {
       toast.error(error.message);
       throw error;
@@ -394,6 +396,7 @@ export function AuthProvider({ children }) {
   /**
    * Email/Password Login
    * Authenticates user and creates new session (invalidating previous sessions)
+   * Returns the userCredential for further processing
    */
   async function login(email, password) {
     try {
@@ -406,7 +409,8 @@ export function AuthProvider({ children }) {
       // Create new session (this invalidates any existing session - single session enforcement)
       await createSession(userCredential.user.uid);
       
-      toast.success('Logged in successfully!');
+      // Return userCredential for MongoDB registration check
+      return userCredential;
     } catch (error) {
       toast.error(error.message);
       throw error;
@@ -416,22 +420,54 @@ export function AuthProvider({ children }) {
   /**
    * Google Sign In
    * Authenticates with Google and creates new session
+   * Returns the userCredential for further processing
    */
   async function signInWithGoogle() {
     try {
+      console.log('🔵 Starting Google Sign-In...');
       // Clear any blocked state from previous attempts
       setSessionBlocked(false);
       setBlockReason(null);
       
       const provider = new GoogleAuthProvider();
+      // Add custom parameters if needed
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+
+      console.log('🔵 Opening popup...');
       const userCredential = await signInWithPopup(auth, provider);
+      console.log('✅ Google Auth successful:', userCredential.user.uid);
       
       // Create new session (this invalidates any existing session - single session enforcement)
-      await createSession(userCredential.user.uid);
+      try {
+        console.log('🔵 Creating session...');
+        await createSession(userCredential.user.uid);
+        console.log('✅ Session created successfully');
+      } catch (sessionError) {
+        console.error('❌ Session creation failed:', sessionError);
+        // We still allow login even if session creation fails, but log it
+        // Or should we fail? The app relies on session.
+        // Let's throw for now to maintain security, but log specific error
+        throw new Error(`Session creation failed: ${sessionError.message}`);
+      }
       
-      toast.success('Logged in with Google!');
+      // Return userCredential for MongoDB registration check
+      return userCredential;
     } catch (error) {
-      toast.error(error.message);
+      console.error('❌ Google Sign-In Error:', error);
+      console.error('Error Code:', error.code);
+      console.error('Error Message:', error.message);
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        toast.error('Sign-in cancelled');
+      } else if (error.code === 'auth/popup-blocked') {
+        toast.error('Popup blocked. Please allow popups for this site.');
+      } else if (error.code === 'auth/network-request-failed') {
+        toast.error('Network error. Please check your connection.');
+      } else {
+        toast.error(`Google Sign-In failed: ${error.message}`);
+      }
       throw error;
     }
   }

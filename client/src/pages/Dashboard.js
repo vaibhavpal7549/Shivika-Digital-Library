@@ -6,7 +6,6 @@ import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import toast from 'react-hot-toast';
 import { HOURLY_RATE } from '../utils/feeUtils';
-import { GalleryButton } from '../components/Gallery';
 import { 
   User, 
   History, 
@@ -22,7 +21,7 @@ import {
   Smartphone,
   Monitor,
   Clock,
-  Image as ImageIcon
+  Image
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -38,7 +37,7 @@ export default function Dashboard() {
   const { isProfileComplete, profile, bookedSeat, hasBookedSeat } = useProfile();
   const navigate = useNavigate();
   const [seats, setSeats] = useState({});
-  const [selectedHours, setSelectedHours] = useState(1);
+  const [selectedHours, setSelectedHours] = useState(4);
   const [totalFee, setTotalFee] = useState(HOURLY_RATE);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
@@ -162,8 +161,14 @@ export default function Dashboard() {
               >
                 <History className="w-5 h-5 text-gray-600 group-hover:text-purple-600 transition-colors" strokeWidth={2} />
               </Link>
-              {/* Gallery Button - View library photos */}
-              <GalleryButton className="h-10 sm:h-11 px-3 sm:px-4 py-0 text-sm" />
+              <Link
+                to="/gallery"
+                className="group relative inline-flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all duration-200 active:scale-95 shadow-sm hover:shadow-md"
+                aria-label="Gallery"
+                title="Gallery"
+              >
+                <Image className="w-5 h-5 text-gray-600 group-hover:text-indigo-600 transition-colors" strokeWidth={2} />
+              </Link>
               <button
                 onClick={handleLogout}
                 disabled={isLoggingOut}
@@ -181,7 +186,7 @@ export default function Dashboard() {
           </div>
 
           {/* SESSION INFO PANEL - Collapsible security info */}
-          {showSessionInfo && (
+          {showSessionInfo && activeSessionInfo && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6 animate-slideInDown">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -213,7 +218,7 @@ export default function Dashboard() {
                     <span className="text-xs font-medium text-gray-500">Device</span>
                   </div>
                   <p className="text-sm font-semibold text-gray-800">
-                    {activeSessionInfo?.deviceInfo?.browser || 'Unknown'} / {activeSessionInfo?.deviceInfo?.os || 'Unknown'}
+                    {activeSessionInfo.deviceInfo?.browser || 'Unknown'} / {activeSessionInfo.deviceInfo?.os || 'Unknown'}
                   </p>
                 </div>
                 
@@ -246,7 +251,7 @@ export default function Dashboard() {
                     <span className="text-xs font-medium text-gray-500">Started</span>
                   </div>
                   <p className="text-sm font-semibold text-gray-800">
-                    {activeSessionInfo?.createdAt 
+                    {activeSessionInfo.createdAt 
                       ? new Date(activeSessionInfo.createdAt).toLocaleTimeString()
                       : 'Unknown'
                     }
@@ -455,9 +460,9 @@ export default function Dashboard() {
                     onChange={(e) => setSelectedHours(Number(e.target.value))}
                     className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-base"
                   >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 24].map((hour) => (
+                    {[4, 6, 8, 10, 12].map((hour) => (
                       <option key={hour} value={hour}>
-                        {hour} {hour === 1 ? 'Hour' : 'Hours'}
+                        {hour} Hours
                       </option>
                     ))}
                   </select>
@@ -483,7 +488,7 @@ export default function Dashboard() {
 
                 {/* Secondary CTA */}
                 <Link
-                  to={isProfileComplete ? "/fee-payment" : "#"}
+                  to={isProfileComplete ? "/seats" : "#"}
                   onClick={handleBookingSeat}
                   className={`block w-full text-center px-4 py-2.5 rounded-lg font-semibold transition-all duration-200 ${
                     isProfileComplete
@@ -491,7 +496,8 @@ export default function Dashboard() {
                       : 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-70'
                   }`}
                 >
-                  💳 Pay Fee
+                  <LayoutGrid className="w-5 h-5 inline-block mr-2 -mt-1" />
+                  Book a Seat Now
                 </Link>
               </div>
             </div>

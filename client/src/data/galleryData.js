@@ -1,245 +1,181 @@
 /**
- * ============================================
- * GALLERY DATA FILE
- * ============================================
+ * Gallery Data
  * 
- * This file contains all gallery media items (photos and videos).
+ * Centralized storage for all gallery photos and videos.
+ * This file makes it easy to add/update gallery content without touching the component.
  * 
- * HOW TO ADD NEW PHOTOS/VIDEOS:
- * =============================
+ * How to add new photos/videos:
+ * 1. For IMAGES:
+ *    - Add entry with type: 'image'
+ *    - Provide thumbnail URL (used in grid)
+ *    - Provide fullscreen URL (can be same or higher quality)
+ *    - Add descriptive title and description
  * 
- * 1. FOR IMAGES:
- *    Add a new object to the GALLERY_ITEMS array with:
- *    {
- *      id: <unique_number>,
- *      type: 'image',
- *      src: '<image_url>',           // Direct URL to the image
- *      thumbnail: '<thumbnail_url>', // Optional: smaller version for grid (improves performance)
- *      title: '<title>',             // Display title
- *      description: '<description>', // Optional description
- *      category: '<category>',       // For filtering: 'interior', 'exterior', 'facilities', 'events'
- *    }
+ * 2. For VIDEOS:
+ *    - Add entry with type: 'video'
+ *    - Provide video URL (YouTube embed, MP4, WebM, etc.)
+ *    - Add descriptive title and description
  * 
- * 2. FOR VIDEOS:
- *    Add a new object to the GALLERY_ITEMS array with:
- *    {
- *      id: <unique_number>,
- *      type: 'video',
- *      src: '<video_url>',           // Direct URL to the video file (MP4 recommended)
- *      thumbnail: '<poster_image>',  // Poster/thumbnail image for the video
- *      title: '<title>',
- *      description: '<description>',
- *      category: '<category>',
- *    }
+ * Example Image Entry:
+ * {
+ *   id: 'img_001',
+ *   type: 'image',
+ *   title: 'Library Overview',
+ *   description: 'Wide view of the main study area',
+ *   thumbnail: 'https://url-to-thumbnail.jpg',
+ *   fullscreen: 'https://url-to-full-image.jpg',
+ * }
  * 
- * 3. FOR LOCAL FILES:
- *    - Place images in: public/gallery/images/
- *    - Place videos in: public/gallery/videos/
- *    - Reference as: '/gallery/images/filename.jpg' or '/gallery/videos/filename.mp4'
- * 
- * CATEGORIES:
- * - 'interior'   : Inside library views
- * - 'exterior'   : Building exterior
- * - 'facilities' : AC, WiFi, amenities
- * - 'events'     : Library events
- * - 'study'      : Study areas, seats
+ * Example Video Entry:
+ * {
+ *   id: 'vid_001',
+ *   type: 'video',
+ *   title: 'Library Tour',
+ *   description: 'Complete walkthrough of our facilities',
+ *   videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+ *   thumbnail: 'https://url-to-video-thumbnail.jpg',
+ * }
  */
 
-// Demo images using Unsplash (free, high-quality stock photos)
-// Replace these with actual library photos in production
-export const GALLERY_ITEMS = [
+export const galleryData = [
   // ============================================
-  // INTERIOR IMAGES
+  // IMAGES - Library Photos
   // ============================================
   {
-    id: 1,
+    id: 'img_001',
     type: 'image',
-    src: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400&q=60',
-    title: 'Main Reading Hall',
-    description: 'Spacious reading area with comfortable seating and natural lighting',
-    category: 'interior',
+    title: 'Main Study Hall',
+    description: 'Our spacious main study area with natural lighting and comfortable seating',
+    thumbnail: 'https://images.unsplash.com/photo-1507842957697-1f57af95c1b1?w=400&h=300&fit=crop',
+    fullscreen: 'https://images.unsplash.com/photo-1507842957697-1f57af95c1b1?w=1200&h=900&fit=crop',
   },
   {
-    id: 2,
+    id: 'img_002',
     type: 'image',
-    src: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=400&q=60',
-    title: 'Study Desks',
-    description: 'Individual study desks with power outlets and reading lamps',
-    category: 'study',
-  },
-  {
-    id: 3,
-    type: 'image',
-    src: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=400&q=60',
-    title: 'Book Collection',
-    description: 'Extensive collection of academic and reference books',
-    category: 'interior',
-  },
-  {
-    id: 4,
-    type: 'image',
-    src: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=400&q=60',
-    title: 'Bookshelf Section',
-    description: 'Well-organized bookshelves for easy navigation',
-    category: 'interior',
-  },
-  
-  // ============================================
-  // STUDY AREA IMAGES
-  // ============================================
-  {
-    id: 5,
-    type: 'image',
-    src: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=400&q=60',
-    title: 'Group Study Area',
-    description: 'Collaborative spaces for group discussions and projects',
-    category: 'study',
-  },
-  {
-    id: 6,
-    type: 'image',
-    src: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=60',
-    title: 'Quiet Zone',
-    description: 'Silent study area for focused learning',
-    category: 'study',
-  },
-  {
-    id: 7,
-    type: 'image',
-    src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=60',
-    title: 'Computer Section',
-    description: 'Modern computers with high-speed internet access',
-    category: 'facilities',
-  },
-  
-  // ============================================
-  // FACILITIES IMAGES
-  // ============================================
-  {
-    id: 8,
-    type: 'image',
-    src: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=60',
-    title: 'Modern Interior',
-    description: 'Contemporary design with excellent lighting',
-    category: 'interior',
-  },
-  {
-    id: 9,
-    type: 'image',
-    src: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&q=60',
-    title: 'Lounge Area',
-    description: 'Comfortable seating for relaxation between study sessions',
-    category: 'facilities',
-  },
-  {
-    id: 10,
-    type: 'image',
-    src: 'https://images.unsplash.com/photo-1606761568499-6d2451b23c66?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1606761568499-6d2451b23c66?w=400&q=60',
     title: 'Reading Corner',
-    description: 'Cozy corner for leisure reading',
-    category: 'interior',
+    description: 'Quiet reading area with soft ambient lighting and premium seating',
+    thumbnail: 'https://images.unsplash.com/photo-1501339847302-ac426a220e5f?w=400&h=300&fit=crop',
+    fullscreen: 'https://images.unsplash.com/photo-1501339847302-ac426a220e5f?w=1200&h=900&fit=crop',
   },
-  
-  // ============================================
-  // EXTERIOR IMAGES
-  // ============================================
   {
-    id: 11,
+    id: 'img_003',
     type: 'image',
-    src: 'https://images.unsplash.com/photo-1580537659466-0a9bfa916a54?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1580537659466-0a9bfa916a54?w=400&q=60',
-    title: 'Library Entrance',
-    description: 'Welcome to Shivika Digital Library',
-    category: 'exterior',
+    title: 'Computer Lab',
+    description: 'Modern computer workstations with high-speed internet and latest software',
+    thumbnail: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=400&h=300&fit=crop',
+    fullscreen: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=1200&h=900&fit=crop',
   },
   {
-    id: 12,
+    id: 'img_004',
     type: 'image',
-    src: 'https://images.unsplash.com/photo-1562774053-701939374585?w=1200&q=80',
-    thumbnail: 'https://images.unsplash.com/photo-1562774053-701939374585?w=400&q=60',
-    title: 'Building View',
-    description: 'Modern architecture with ample parking space',
-    category: 'exterior',
-  },
-  
-  // ============================================
-  // DEMO VIDEOS
-  // ============================================
-  // Using sample videos from reliable sources
-  {
-    id: 101,
-    type: 'video',
-    src: 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4',
-    thumbnail: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=400&q=60',
-    title: 'Library Tour',
-    description: 'Take a virtual tour of our library facilities',
-    category: 'interior',
+    title: 'Reference Library',
+    description: 'Extensive collection of books and reference materials',
+    thumbnail: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400&h=300&fit=crop',
+    fullscreen: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=1200&h=900&fit=crop',
   },
   {
-    id: 102,
+    id: 'img_005',
+    type: 'image',
+    title: 'Group Study Rooms',
+    description: 'Private meeting rooms available for collaborative study sessions',
+    thumbnail: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop',
+    fullscreen: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=900&fit=crop',
+  },
+  {
+    id: 'img_006',
+    type: 'image',
+    title: 'Cafeteria',
+    description: 'Comfortable cafeteria with refreshments and break areas',
+    thumbnail: 'https://images.unsplash.com/photo-1559521292-c5b2c4c47e43?w=400&h=300&fit=crop',
+    fullscreen: 'https://images.unsplash.com/photo-1559521292-c5b2c4c47e43?w=1200&h=900&fit=crop',
+  },
+  {
+    id: 'img_007',
+    type: 'image',
+    title: 'Workspace Amenities',
+    description: 'Ergonomic chairs, spacious desks, and proper ventilation throughout',
+    thumbnail: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&h=300&fit=crop',
+    fullscreen: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=1200&h=900&fit=crop',
+  },
+  {
+    id: 'img_008',
+    type: 'image',
+    title: 'Night Study',
+    description: 'Well-lit study area available for evening study sessions',
+    thumbnail: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?w=400&h=300&fit=crop',
+    fullscreen: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?w=1200&h=900&fit=crop',
+  },
+
+  // ============================================
+  // VIDEOS - Library Tours & Guides
+  // ============================================
+  {
+    id: 'vid_001',
     type: 'video',
-    src: 'https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_2mb.mp4',
-    thumbnail: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=400&q=60',
-    title: 'Study Environment',
-    description: 'See the peaceful study environment in action',
-    category: 'study',
+    title: 'Library Overview Tour',
+    description: 'Complete walkthrough of all library facilities and amenities',
+    videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+    thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
+  },
+  {
+    id: 'vid_002',
+    type: 'video',
+    title: 'How to Book a Seat',
+    description: 'Step-by-step guide on booking your preferred study seat',
+    videoUrl: 'https://www.youtube.com/embed/jNQXAC9IVRw',
+    thumbnail: 'https://img.youtube.com/vi/jNQXAC9IVRw/mqdefault.jpg',
+  },
+  {
+    id: 'vid_003',
+    type: 'video',
+    title: 'Facility Highlights',
+    description: 'Quick tour of our premium study spaces and facilities',
+    videoUrl: 'https://www.youtube.com/embed/9bZkp7q19f0',
+    thumbnail: 'https://img.youtube.com/vi/9bZkp7q19f0/mqdefault.jpg',
   },
 ];
 
-// ============================================
-// CATEGORY DEFINITIONS
-// ============================================
-export const GALLERY_CATEGORIES = [
-  { id: 'all', label: 'All', icon: '🖼️' },
-  { id: 'interior', label: 'Interior', icon: '🏛️' },
-  { id: 'study', label: 'Study Areas', icon: '📚' },
-  { id: 'facilities', label: 'Facilities', icon: '🖥️' },
-  { id: 'exterior', label: 'Exterior', icon: '🏢' },
-  { id: 'events', label: 'Events', icon: '🎉' },
-];
-
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
+/**
+ * Helper function to get gallery statistics
+ * Returns count of images and videos
+ */
+export function getGalleryStats() {
+  const images = galleryData.filter(item => item.type === 'image');
+  const videos = galleryData.filter(item => item.type === 'video');
+  
+  return {
+    totalItems: galleryData.length,
+    imageCount: images.length,
+    videoCount: videos.length,
+  };
+}
 
 /**
- * Get items by category
- * @param {string} category - Category to filter by ('all' returns everything)
- * @returns {Array} Filtered gallery items
+ * Helper function to get next item in gallery
+ * Useful for carousel/navigation
  */
-export const getItemsByCategory = (category) => {
-  if (category === 'all') return GALLERY_ITEMS;
-  return GALLERY_ITEMS.filter(item => item.category === category);
-};
+export function getNextItem(currentId) {
+  const currentIndex = galleryData.findIndex(item => item.id === currentId);
+  if (currentIndex === -1 || currentIndex === galleryData.length - 1) {
+    return galleryData[0]; // Loop to start
+  }
+  return galleryData[currentIndex + 1];
+}
 
 /**
- * Get count of images and videos
- * @returns {Object} { images: number, videos: number, total: number }
+ * Helper function to get previous item in gallery
  */
-export const getMediaCounts = () => {
-  const images = GALLERY_ITEMS.filter(item => item.type === 'image').length;
-  const videos = GALLERY_ITEMS.filter(item => item.type === 'video').length;
-  return { images, videos, total: GALLERY_ITEMS.length };
-};
+export function getPreviousItem(currentId) {
+  const currentIndex = galleryData.findIndex(item => item.id === currentId);
+  if (currentIndex === -1 || currentIndex === 0) {
+    return galleryData[galleryData.length - 1]; // Loop to end
+  }
+  return galleryData[currentIndex - 1];
+}
 
 /**
- * Get only images
- * @returns {Array} Image items only
+ * Helper function to get item by ID
  */
-export const getImages = () => GALLERY_ITEMS.filter(item => item.type === 'image');
-
-/**
- * Get only videos
- * @returns {Array} Video items only
- */
-export const getVideos = () => GALLERY_ITEMS.filter(item => item.type === 'video');
+export function getItemById(id) {
+  return galleryData.find(item => item.id === id);
+}

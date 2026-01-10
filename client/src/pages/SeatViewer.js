@@ -2,14 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
+import { useSocket } from '../contexts/SocketContext';
 import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import SeatLayout from '../components/SeatLayout';
+import axios from 'axios';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 /**
  * SeatViewer Component
  * 
  * Displays the library seat layout with real-time availability.
+ * Uses Socket.IO for instant updates without page refresh.
  * 
  * ONE-SEAT-PER-USER FEATURES:
  * - Shows "Your Booked Seat" card if user has a seat
@@ -18,11 +23,32 @@ import SeatLayout from '../components/SeatLayout';
  * - Profile completion check before allowing booking
  */
 export default function SeatViewer() {
-  const { logout } = useAuth();
   const { isProfileComplete, bookedSeat, hasBookedSeat, bookedSeatLoading } = useProfile();
+  const { connected, lastSeatUpdate } = useSocket();
   const [seats, setSeats] = useState({});
   const [loading, setLoading] = useState(true);
 
+  // Initial load from MongoDB (source of truth)
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/seats/all`);
+        if (isMounted && response.data?.success) {
+          setSeats(response.data.seats || {});
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error fetching seats from API:', error);
+        // Fallback to Firebase listener will still populate
+      }
+    })();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Firebase real-time listener (cache/updates)
+  // DISABLED: Backend does not sync to Firebase, so this was overwriting valid API data with empty data.
+  /*
   useEffect(() => {
     const seatsRef = ref(database, 'seats');
     const unsubscribe = onValue(seatsRef, (snapshot) => {
@@ -33,6 +59,41 @@ export default function SeatViewer() {
 
     return () => unsubscribe();
   }, []);
+  */
+
+  // Socket.IO updates (secondary, for instant cross-user updates)
+  useEffect(() => {
+    if (lastSeatUpdate) {
+      // Update seats based on socket event
+      setSeats(prevSeats => {
+        const newSeats = { ...prevSeats };
+        
+        if (lastSeatUpdate.type === 'SEAT_BOOKED') {
+          newSeats[lastSeatUpdate.seatNumber] = {
+            status: 'booked',
+            userId: lastSeatUpdate.userId,
+            userEmail: lastSeatUpdate.userEmail,
+            bookedAt: lastSeatUpdate.bookedAt
+          };
+        } else if (lastSeatUpdate.type === 'SEAT_RELEASED') {
+          delete newSeats[lastSeatUpdate.seatNumber];
+        } else if (lastSeatUpdate.type === 'SEAT_CHANGED') {
+          // Remove old seat
+          if (lastSeatUpdate.oldSeatNumber) {
+            delete newSeats[lastSeatUpdate.oldSeatNumber];
+          }
+          // Add new seat
+          newSeats[lastSeatUpdate.newSeatNumber] = {
+            status: 'booked',
+            userId: lastSeatUpdate.userId,
+            userEmail: lastSeatUpdate.userEmail
+          };
+        }
+        
+        return newSeats;
+      });
+    }
+  }, [lastSeatUpdate]);
 
   if (loading) {
     return (
@@ -54,10 +115,19 @@ export default function SeatViewer() {
                 <span className="text-xl sm:text-2xl md:text-3xl block">🪑</span>
               </div>
               <div className="min-w-0">
-                <h1 className="text-lg sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent truncate">
-                  Seat Viewer
-                </h1>
-                <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1">Real-time availability</p>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent truncate">
+                    Seat Viewer
+                  </h1>
+                  {/* Real-time connection indicator */}
+                  <span 
+                    className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}
+                    title={connected ? 'Live updates active' : 'Reconnecting...'}
+                  />
+                </div>
+                <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1">
+                  {connected ? 'Live updates active' : 'Real-time availability'}
+                </p>
               </div>
             </div>
 
@@ -75,12 +145,6 @@ export default function SeatViewer() {
               >
                 Profile
               </Link>
-              <button
-                onClick={logout}
-                className="bg-gray-200 text-gray-800 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 rounded text-xs sm:text-sm md:text-base font-semibold hover:bg-gray-300 transition touch-target"
-              >
-                Logout
-              </button>
             </div>
           </div>
         </div>

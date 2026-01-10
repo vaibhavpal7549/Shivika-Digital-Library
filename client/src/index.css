@@ -173,10 +173,6 @@ input, textarea, select {
   max-width: 100%;
 }
 
-input:focus, textarea:focus, select:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
 
 /* ========== RESPONSIVE CONTAINER QUERIES ========== */
 @supports (container-type: inline-size) {

@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import toast from 'react-hot-toast';
 import { getDaysRemaining } from '../utils/feeUtils';
-import { GalleryButton } from '../components/Gallery';
 import { 
   User, 
   Edit3, 
@@ -93,6 +92,7 @@ export default function Profile() {
     dateOfBirth: '',
     email: '',
     phoneNumber: '',
+    gender: '',
     fullAddress: '',
   });
   
@@ -101,25 +101,31 @@ export default function Profile() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showChangeSeatPopup, setShowChangeSeatPopup] = useState(false);
   const [showContactUs, setShowContactUs] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
 
   useEffect(() => {
+    // Don't overwrite form data if user is currently editing
+    if (isEditing) return;
+
     if (profile) {
       setFormData({
-        profilePhoto: profile.profilePhoto || '',
+        profilePhoto: profile.profilePhoto || profile.photoURL || '',
         fullName: profile.fullName || '',
-        fatherName: profile.fatherName || '',
-        dateOfBirth: profile.dateOfBirth || '',
+        fatherName: profile.fatherName || profile.profile?.fatherName || '',
+        dateOfBirth: (profile.dateOfBirth || profile.profile?.dateOfBirth || '').split('T')[0],
         email: profile.email || currentUser?.email || '',
-        phoneNumber: profile.phoneNumber || '',
-        fullAddress: profile.fullAddress || '',
+        phoneNumber: profile.phoneNumber || profile.phone || '',
+        gender: profile.gender || profile.profile?.gender || '',
+        fullAddress: profile.fullAddress || profile.profile?.address?.full || '',
       });
     } else {
       setFormData(prev => ({
         ...prev,
         email: currentUser?.email || '',
+        profilePhoto: currentUser?.photoURL || '',
       }));
     }
-  }, [profile, currentUser]);
+  }, [profile, currentUser, isEditing]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -127,6 +133,17 @@ export default function Profile() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handlePhoneChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '');
+    if (val.length <= 10) {
+      setFormData(prev => ({
+        ...prev,
+        phoneNumber: val,
+      }));
+      setPhoneError('');
+    }
   };
 
   const handlePhotoChange = (e) => {
@@ -146,11 +163,26 @@ export default function Profile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate phone number
+    if (formData.phoneNumber.length !== 10) {
+      setPhoneError('Phone number must be exactly 10 digits');
+      toast.error('Please enter a 10-digit phone number');
+      return;
+    }
+    
     setIsSaving(true);
     try {
-      await updateProfile(formData);
+      // Calculate User ID
+      const userId = (formData.fullName?.slice(0, 3).toUpperCase() || 'XXX') + (formData.phoneNumber?.slice(-4) || 'XXXX');
+      
+      await updateProfile({
+        ...formData,
+        userId
+      });
       toast.success('Profile updated successfully!');
       setIsEditing(false);
+      setPhoneError('');
     } catch (error) {
       toast.error('Failed to update profile');
       console.error(error);
@@ -236,9 +268,15 @@ export default function Profile() {
                 
                 {/* Header Actions */}
                 <div className="flex gap-2 sm:gap-3 sm:pb-2 flex-wrap">
-                  {/* Gallery Button - Opens library photo gallery */}
-                  <GalleryButton className="text-sm sm:text-base" />
-                  
+                  <Link
+                    to="/gallery"
+                    className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 text-white font-medium hover:bg-purple-700 transition-all duration-200 active:scale-95 shadow-sm hover:shadow-md text-sm sm:text-base"
+                    aria-label="View Gallery"
+                    title="View library gallery"
+                  >
+                    <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2} />
+                    <span className="hidden sm:inline">Gallery</span>
+                  </Link>
                   <Link
                     to="/dashboard"
                     className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all duration-200 active:scale-95 shadow-sm hover:shadow-md text-sm sm:text-base"
@@ -530,6 +568,20 @@ export default function Profile() {
                 </h3>
                 
                 <div className="space-y-5">
+                  {/* User ID (Auto-generated) */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-2">
+                      User ID <span className="text-xs text-gray-400">(Auto-generated)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={(formData.fullName?.slice(0, 3).toUpperCase() || 'XXX') + (formData.phoneNumber?.slice(-4) || 'XXXX')}
+                      readOnly
+                      disabled
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 bg-gray-100 text-gray-500 font-bold tracking-wider cursor-not-allowed"
+                    />
+                  </div>
+
                   {/* Full Name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-2">
@@ -542,7 +594,7 @@ export default function Profile() {
                         value={formData.fullName}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 bg-gray-50/50 focus:bg-white focus:border-blue-500 focus:shadow-lg focus:shadow-blue-500/20 focus:outline-none transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium"
                         placeholder="Enter your full name"
                       />
                     ) : (
@@ -562,7 +614,7 @@ export default function Profile() {
                         value={formData.fatherName}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 bg-gray-50/50 focus:bg-white focus:border-blue-500 focus:shadow-lg focus:shadow-blue-500/20 focus:outline-none transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium"
                         placeholder="Enter father's name"
                       />
                     ) : (
@@ -585,10 +637,37 @@ export default function Profile() {
                         value={formData.dateOfBirth}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 bg-gray-50/50 focus:bg-white focus:border-blue-500 focus:shadow-lg focus:shadow-blue-500/20 focus:outline-none transition-all duration-300 text-gray-900 font-medium"
                       />
                     ) : (
-                      <p className="text-gray-900 font-medium py-2">{formData.dateOfBirth || <span className="text-gray-400 italic">Not provided</span>}</p>
+                      <p className="text-gray-900 font-medium py-2">
+                        {formData.dateOfBirth ? new Date(formData.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : <span className="text-gray-400 italic">Not provided</span>}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Gender */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-2">
+                      Gender <span className="text-red-500">*</span>
+                    </label>
+                    {isEditing ? (
+                      <select
+                        name="gender"
+                        value={formData.gender}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 bg-gray-50/50 focus:bg-white focus:border-blue-500 focus:shadow-lg focus:shadow-blue-500/20 focus:outline-none transition-all duration-300 text-gray-900 font-medium appearance-none"
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    ) : (
+                      <p className="text-gray-900 font-medium py-2 capitalize">
+                        {formData.gender || <span className="text-gray-400 italic">Not provided</span>}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -617,8 +696,9 @@ export default function Profile() {
                         value={formData.email}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 bg-gray-50/50 focus:bg-white focus:border-blue-500 focus:shadow-lg focus:shadow-blue-500/20 focus:outline-none transition-all duration-300 text-gray-900 placeholder-gray-400 pointer-events-auto font-medium"
                         placeholder="your@email.com"
+                        autoComplete="email"
                       />
                     ) : (
                       <p className="text-gray-900 font-medium py-2">{formData.email || <span className="text-gray-400 italic">Not provided</span>}</p>
@@ -634,15 +714,32 @@ export default function Profile() {
                       </span>
                     </label>
                     {isEditing ? (
-                      <input
-                        type="tel"
-                        name="phoneNumber"
-                        value={formData.phoneNumber}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
-                        placeholder="9876543210"
-                      />
+                      <div>
+                        <input
+                          type="tel"
+                          name="phoneNumber"
+                          value={formData.phoneNumber}
+                          onChange={handlePhoneChange}
+                          required
+                          maxLength="10"
+                          className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:shadow-lg focus:shadow-blue-500/20 pointer-events-auto font-medium ${
+                            phoneError 
+                              ? 'border-red-300 bg-red-50/50 focus:border-red-500' 
+                              : 'border-gray-100 bg-gray-50/50 focus:bg-white focus:border-blue-500'
+                          }`}
+                          placeholder="Mobile Number (10 digits)"
+                          autoComplete="tel"
+                        />
+                        {phoneError && (
+                          <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {phoneError}
+                          </p>
+                        )}
+                        {!phoneError && formData.phoneNumber.length > 0 && formData.phoneNumber.length < 10 && (
+                          <p className="mt-1 text-xs text-gray-500">({formData.phoneNumber.length}/10 digits)</p>
+                        )}
+                      </div>
                     ) : (
                       <p className="text-gray-900 font-medium py-2">{formData.phoneNumber || <span className="text-gray-400 italic">Not provided</span>}</p>
                     )}
@@ -663,7 +760,7 @@ export default function Profile() {
                         onChange={handleInputChange}
                         required
                         rows="3"
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400 resize-none"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 bg-gray-50/50 focus:bg-white focus:border-blue-500 focus:shadow-lg focus:shadow-blue-500/20 focus:outline-none transition-all duration-300 text-gray-900 placeholder-gray-400 resize-none font-medium"
                         placeholder="Enter your complete address"
                       />
                     ) : (

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
-import { database } from '../firebase/config';
-import { ref, push } from 'firebase/database';
+import { useUser } from '../contexts/UserContext';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { calculateMonthlyFee, MONTHLY_FEE } from '../utils/feeUtils';
@@ -33,6 +32,8 @@ export default function FeePayment() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { updateFeePayment } = useProfile();
+  // Get MongoDB update function to sync payment status
+  const { updatePaymentStatus } = useUser();
   const [selectedMonths, setSelectedMonths] = useState(1);
   const [totalFee, setTotalFee] = useState(MONTHLY_FEE);
   
@@ -208,12 +209,19 @@ export default function FeePayment() {
           
           try {
             // Step 6: Verify payment on backend
+            // Backend handles:
+            // - Payment signature verification
+            // - Saving payment record to MongoDB (source of truth)
+            // - Syncing to Firebase for real-time updates
+            // - Updating user profile with fee payment status
             const verifyResponse = await axios.post(`${API_BASE_URL}/api/verify-payment`, {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               months: selectedMonths,
               userId: currentUser.uid,
+              userEmail: currentUser.email,
+              amount: totalFee,
               type: 'fee_payment',
             });
 
@@ -221,29 +229,19 @@ export default function FeePayment() {
               console.log('✅ Payment verified:', response.razorpay_payment_id);
               toast.dismiss(verifyToast);
               
-              // Step 7: Update user profile and save payment record
-              const paymentDate = new Date().toISOString();
+              // Step 7: Update local profile state (backend already saved to DB)
+              const paymentDate = verifyResponse.data.paymentDate || new Date().toISOString();
               
-              // Update fee payment status in profile
+              // Update local profile state for immediate UI feedback
               await updateFeePayment(paymentDate, selectedMonths);
 
-              // Save payment history to Firebase with complete status
-              const paymentsRef = ref(database, 'payments');
-              await push(paymentsRef, {
-                userId: currentUser.uid,
-                userEmail: currentUser.email,
-                months: selectedMonths,
-                amount: totalFee,
-                paymentId: response.razorpay_payment_id,
-                orderId: response.razorpay_order_id,
-                paidAt: paymentDate,
-                feePaymentDate: paymentDate,
-                status: 'paid',
-                verificationStatus: 'verified',
-                type: 'fee_payment',
-                createdAt: paymentDate,
-                updatedAt: paymentDate,
-              });
+              // Step 8: Sync payment status to UserContext (for MongoDB user record)
+              try {
+                await updatePaymentStatus('PAID');
+                console.log('✅ UserContext payment status synced');
+              } catch (mongoError) {
+                console.warn('⚠️ UserContext sync failed (non-critical):', mongoError);
+              }
 
               // Update payment status
               setPaymentStatus('success');
@@ -256,7 +254,7 @@ export default function FeePayment() {
               console.error('❌ Verification failed:', verifyResponse.data.error);
               setPaymentStatus('failed');
               setLastError('Payment verification failed');
-              toast.error('Payment verification failed. Please contact support.');
+              toast.error('Payment verification failed. Please contact support with your payment ID: ' + response.razorpay_payment_id);
             }
           } catch (error) {
             toast.dismiss(verifyToast);
@@ -264,21 +262,8 @@ export default function FeePayment() {
             setPaymentStatus('failed');
             setLastError(error.message || 'Payment verification failed');
             
-            // Save failed payment attempt for reference
-            const paymentsRef = ref(database, 'payments');
-            await push(paymentsRef, {
-              userId: currentUser.uid,
-              userEmail: currentUser.email,
-              months: selectedMonths,
-              amount: totalFee,
-              paymentId: response.razorpay_payment_id,
-              orderId: response.razorpay_order_id,
-              status: 'verification_failed',
-              verificationStatus: 'failed',
-              errorMessage: error.message,
-              type: 'fee_payment',
-              createdAt: new Date().toISOString(),
-            });
+            // NOTE: Failed payment records are saved by the backend
+            // No direct Firebase writes from frontend
             
             toast.error('Payment verification failed. Please contact support with your payment ID: ' + response.razorpay_payment_id);
           }

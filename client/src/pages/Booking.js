@@ -312,15 +312,20 @@ export default function Booking() {
             });
 
             // STEP 1: Verify payment on backend (backend handles booking atomically)
-            const verifyResponse = await axios.post(`${API_BASE_URL}/api/verify-payment`, {
+            const verifyPayload = {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-              firebaseUid: currentUser.uid,  // Send firebaseUid (not userId)
+              firebaseUid: currentUser.uid,
               seatNumber: parseInt(seatNumber),
+              amount: totalFee, // Ensure amount is sent
               shift: feeCalculationMode === 'hourly' ? 'custom' : 'fullday',
               months: selectedMonths
-            });
+            };
+
+            console.log('🔵 Sending verification payload:', verifyPayload);
+
+            const verifyResponse = await axios.post(`${API_BASE_URL}/api/verify-payment`, verifyPayload);
 
             console.log('✅ Backend verification response:', verifyResponse.data);
 

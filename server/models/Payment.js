@@ -241,17 +241,16 @@ PaymentSchema.virtual('isSuccessful').get(function() {
 // ============================================
 
 // Mark payment as verified/successful
-PaymentSchema.methods.markVerified = async function(paymentId, signature) {
+PaymentSchema.methods.markVerified = function(paymentId, signature) {
   this.paymentId = paymentId;
   this.signature = signature;
   this.status = 'paid';
   this.verificationStatus = 'verified';
   this.paidAt = new Date();
   
-  // Generate receipt number
-  this.receiptNumber = `RCP-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-  
-  return this.save();
+  // Note: Receipt number is set in controller before save
+  // Do NOT call save() here - controller handles it
+  return this; // Return this for chaining
 };
 
 // Mark payment as failed

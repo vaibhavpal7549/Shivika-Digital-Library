@@ -331,28 +331,46 @@ UserSchema.methods.releaseSeat = async function() {
 };
 
 // Add payment to history
-UserSchema.methods.addPayment = async function(paymentData) {
-  this.paymentHistory.push(paymentData);
+UserSchema.methods.addPayment = function(paymentData) {
+  // Validate required fields
+  if (!paymentData || !paymentData.amount) {
+    throw new Error('Payment data must include amount');
+  }
+  
+  // Build payment history entry with proper field mapping
+  const historyEntry = {
+    transactionId: paymentData.paymentId || paymentData.orderId || paymentData.transactionId,
+    amount: paymentData.amount,
+    paymentMode: paymentData.paymentMode || 'Online',
+    paymentDate: paymentData.date || paymentData.paymentDate || new Date(),
+    monthsPaidFor: paymentData.monthsPaid || paymentData.monthsPaidFor || 1,
+    status: paymentData.status || 'success',
+    receiptUrl: paymentData.receiptUrl,
+    notes: paymentData.notes
+  };
+  
+  this.paymentHistory.push(historyEntry);
   
   // Update payment summary
   this.payment.totalPaid = (this.payment.totalPaid || 0) + paymentData.amount;
-  this.payment.lastPaymentDate = paymentData.paymentDate || new Date();
+  this.payment.lastPaymentDate = historyEntry.paymentDate;
   this.payment.paymentStatus = 'paid';
   
   // Extend due date
-  const months = paymentData.monthsPaidFor || 1;
+  const months = historyEntry.monthsPaidFor;
   const nextDue = new Date(this.payment.nextDueDate || new Date());
   nextDue.setMonth(nextDue.getMonth() + months);
   this.payment.nextDueDate = nextDue;
 
-  // Extend seat expiry
-  if (this.seat.expiryDate) {
+  // Extend seat expiry if seat exists
+  if (this.seat && this.seat.expiryDate) {
     const newExpiry = new Date(this.seat.expiryDate);
     newExpiry.setMonth(newExpiry.getMonth() + months);
     this.seat.expiryDate = newExpiry;
   }
 
-  return this.save();
+  // Note: Do NOT call save() here - let controller handle it
+  return this;
 };
 
 

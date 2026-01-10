@@ -1,6 +1,7 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const { User, Seat, Payment } = require('../models');
+const { syncSeatToFirebase } = require('../services/firebaseSyncService');
 
 
 /**
@@ -156,6 +157,22 @@ exports.createOrder = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Create order error:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    
+    // Log validation errors in detail
+    if (error.name === 'ValidationError') {
+      console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+      const validationMessages = Object.keys(error.errors).map(key => {
+        return `${key}: ${error.errors[key].message}`;
+      });
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid data format',
+        details: validationMessages.join(', ')
+      });
+    }
+    
     // Send specific error message if available
     res.status(500).json({
       success: false,
@@ -170,13 +187,8 @@ exports.createOrder = async (req, res) => {
  */
 exports.verifyPayment = async (req, res) => {
   try {
-    console.log('🔵 Payment verification request:', {
-      orderId: req.body.razorpay_order_id,
-      paymentId: req.body.razorpay_payment_id,
-      hasSignature: !!req.body.razorpay_signature,
-      seatNumber: req.body.seatNumber,
-      userId: req.body.userId || req.body.firebaseUid
-    });
+    // 1. Mandatory Debug Log
+    console.log("VERIFY API HIT", JSON.stringify(req.body, null, 2));
 
     const {
       razorpay_order_id,
@@ -185,212 +197,421 @@ exports.verifyPayment = async (req, res) => {
       userId,
       firebaseUid,
       seatNumber,
-      shift = 'fullday'
+      amount,
+      shift = 'fullday',
+      months = 1
     } = req.body;
 
-    // Validation
+    // 2. Strict Input Validation
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      console.error('❌ Missing payment details');
+      console.error('❌ Missing required payment details');
       return res.status(400).json({
         success: false,
-        error: 'Payment details are incomplete'
+        error: 'Missing required fields: payment_id, order_id, or signature'
       });
     }
 
-    // Check for Razorpay secret key
+    // Validate seatNumber if provided
+    if (seatNumber && !Number.isInteger(parseInt(seatNumber))) {
+      console.error('❌ Invalid seat number:', seatNumber);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'seatNumber must be a valid integer' 
+      });
+    }
+
+    // Validate amount if provided
+    if (amount !== undefined && (typeof amount !== 'number' || amount <= 0)) {
+      console.error('❌ Invalid amount:', amount);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'amount must be a positive number' 
+      });
+    }
+
+    // Validate months
+    if (months !== undefined && (!Number.isInteger(months) || months < 1 || months > 12)) {
+      console.error('❌ Invalid months:', months);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'months must be an integer between 1 and 12' 
+      });
+    }
+
+    // Validate firebaseUid
+    if (!firebaseUid && !userId) {
+      console.error('❌ Missing user identifier');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'firebaseUid or userId is required' 
+      });
+    }
+
+    // 3. Env Variable Check
     if (!process.env.RAZORPAY_KEY_SECRET) {
-      console.error('❌ RAZORPAY_KEY_SECRET not configured');
+      console.error('❌ FATAL: RAZORPAY_KEY_SECRET is missing');
       return res.status(500).json({
         success: false,
-        error: 'Payment gateway not configured properly'
+        error: 'Server configuration error: Payment secret missing'
       });
     }
 
-    // Verify signature
-    const body = razorpay_order_id + '|' + razorpay_payment_id;
-    const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
-      .digest('hex');
+    // 4. Signature Verification
+    try {
+      const payload = `${razorpay_order_id}|${razorpay_payment_id}`;
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        .update(payload)
+        .digest('hex');
 
-    const isValid = expectedSignature === razorpay_signature;
+      console.log(`🔐 Sig Check: Expected=${expectedSignature.slice(0,5)}... Received=${razorpay_signature.slice(0,5)}...`);
 
-    console.log('🔐 Signature verification:', isValid ? 'PASSED' : 'FAILED');
+      const signatureValid = crypto.timingSafeEqual(
+        Buffer.from(expectedSignature),
+        Buffer.from(razorpay_signature)
+      );
 
-    // Find payment record
-    const payment = await Payment.findOne({ orderId: razorpay_order_id });
-    if (!payment) {
-      console.error('❌ Payment record not found for order:', razorpay_order_id);
-      return res.status(404).json({
+      if (!signatureValid) {
+        console.error('❌ Signature Verification Failed');
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid payment signature'
+        });
+      }
+    } catch (sigError) {
+      console.error('❌ Signature calculation error:', sigError);
+      return res.status(500).json({
         success: false,
-        error: 'Payment record not found'
+        error: 'Internal error during signature verification'
       });
     }
 
-    // Find user (use firebaseUid from request or from payment record)
-    const userFirebaseUid = firebaseUid || userId || payment.firebaseUid;
-    const user = await User.findOne({ firebaseUid: userFirebaseUid });
-    if (!user) {
-      console.error('❌ User not found for UID:', userFirebaseUid);
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
-    }
-
-    if (!isValid) {
-      // Payment verification failed
-      console.error('❌ Signature mismatch - payment verification failed');
-      await payment.markFailed('verification_failed');
+    // 5. Database Operations (Clean, Atomic Order)
+    try {
+      console.log('💾 Starting database operations...');
       
-      return res.status(401).json({
-        success: false,
-        error: 'Payment verification failed - signature mismatch'
-      });
-    }
+      // ===== STEP 1: FIND RECORDS =====
+      const payment = await Payment.findOne({ orderId: razorpay_order_id });
+      if (!payment) {
+        console.error('❌ Payment record not found for order:', razorpay_order_id);
+        return res.status(404).json({ success: false, error: 'Payment record not found' });
+      }
 
-    // Payment verified! Update records
-    await payment.markVerified(razorpay_payment_id, razorpay_signature);
+      const userUid = firebaseUid || userId || payment.firebaseUid;
+      const user = await User.findOne({ firebaseUid: userUid });
+      if (!user) {
+        console.error('❌ User not found:', userUid);
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
 
-    // Generate receipt number
-    payment.receiptNumber = `RCP-${Date.now()}-${payment._id.toString().slice(-6)}`;
-    await payment.save();
+      console.log(`✅ Found payment and user for ${user.fullName}`);
 
-    // Update user's payment info
-    const months = payment.monthsPaidFor || 1;
-    const nextDueDate = new Date();
-    nextDueDate.setMonth(nextDueDate.getMonth() + months);
-
-    // Add to user's payment history
-    await user.addPayment({
-      paymentId: razorpay_payment_id,
-      orderId: razorpay_order_id,
-      amount: payment.amount,
-      date: new Date(),
-      paymentMode: 'online',
-      status: 'success',
-      type: payment.type,
-      monthsPaid: months,
-      receiptNumber: payment.receiptNumber
-    });
-
-    // Update payment summary
-    user.payment.paymentStatus = 'paid';
-    user.payment.lastPaymentDate = new Date();
-    user.payment.lastPaymentAmount = payment.amount;
-    user.payment.nextDueDate = nextDueDate;
-    user.payment.totalAmountPaid = (user.payment.totalAmountPaid || 0) + payment.amount;
-
-    let seatBooked = false;
-    let seatInfo = null;
-
-    // Book seat if specified
-    const seatNum = seatNumber || payment.seatNumber;
-    if (seatNum && !user.hasActiveSeat) {
-      let seat = await Seat.findOne({ seatNumber: parseInt(seatNum) });
+      // ===== STEP 2: VALIDATE DATA =====
+      const paymentMonths = payment.monthsPaidFor || months;
+      const targetSeatNumber = seatNumber || payment.seatNumber;
       
-      if (!seat) {
-        seat = new Seat({
-          seatNumber: parseInt(seatNum),
-          zone: seatNum <= 15 ? 'A' : seatNum <= 30 ? 'B' : seatNum <= 45 ? 'C' : 'D'
+      if (targetSeatNumber && !Number.isInteger(parseInt(targetSeatNumber))) {
+        console.error('❌ Invalid seat number:', targetSeatNumber);
+        return res.status(400).json({ success: false, error: 'Invalid seat number' });
+      }
+
+      // ===== STEP 3: UPDATE PAYMENT (NO SAVE YET) =====
+      payment.markVerified(razorpay_payment_id, razorpay_signature);
+      payment.receiptNumber = `RCP-${Date.now()}-${payment._id.toString().slice(-6)}`;
+      console.log('✅ Payment marked as verified');
+
+      // ===== STEP 4: UPDATE USER PAYMENT HISTORY (NO SAVE YET) =====
+      try {
+        user.addPayment({
+          paymentId: razorpay_payment_id,
+          orderId: razorpay_order_id,
+          amount: payment.amount,
+          date: new Date(),
+          paymentMode: 'online',
+          status: 'success',
+          type: payment.type,
+          monthsPaid: paymentMonths,
+          receiptNumber: payment.receiptNumber
+        });
+        console.log('✅ Payment added to user history');
+      } catch (addPaymentError) {
+        console.error('❌ Error adding payment to user history:', addPaymentError.message);
+        return res.status(400).json({ 
+          success: false, 
+          error: `Invalid payment data: ${addPaymentError.message}` 
         });
       }
 
-      // Check if seat is available
-      if (!seat.isBooked || seat.isExpired) {
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + months);
+      // ===== STEP 5: UPDATE USER STATS =====
+      user.payment.paymentStatus = 'paid';
+      user.payment.totalAmountPaid = (user.payment.totalAmountPaid || 0) + payment.amount;
+      
+      const nextDueDate = new Date();
+      nextDueDate.setMonth(nextDueDate.getMonth() + paymentMonths);
+      user.payment.nextDueDate = nextDueDate;
 
-        await seat.book(user, shift, months);
+      // ===== STEP 6: ATOMIC SEAT BOOKING =====
+      let seatBooked = false;
+      let seatInfo = null;
+      let bookedSeat = null;
 
-        user.seat = {
-          seatNumber: parseInt(seatNum),
-          seatStatus: 'active',
-          libraryName: 'Shivika Digital Library',
+      if (targetSeatNumber) {
+        console.log(`💺 Attempting to book Seat ${targetSeatNumber}...`);
+        console.log(`Seat booking params:`, {
+          seatNumber: targetSeatNumber,
+          userId: user._id,
+          firebaseUid: user.firebaseUid,
           shift,
-          bookingDate: new Date(),
-          expiryDate
-        };
+          months: paymentMonths
+        });
+        
+        const bookingDate = new Date();
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + paymentMonths);
 
-        payment.seatNumber = parseInt(seatNum);
-        payment.seatBookedSuccessfully = true;
-        await payment.save();
+        try {
+          // Check if user is extending their own seat
+          const isExtension = user.seat && user.seat.seatNumber === parseInt(targetSeatNumber);
+          
+          if (isExtension) {
+            // ATOMIC EXTENSION: Update only if seat is booked by this user
+            console.log(`🔄 Extending existing seat ${targetSeatNumber} for user ${user.firebaseUid}`);
+            
+            bookedSeat = await Seat.findOneAndUpdate(
+              {
+                seatNumber: parseInt(targetSeatNumber),
+                bookedByFirebaseUid: user.firebaseUid
+              },
+              {
+                $set: {
+                  expiryDate: new Date(user.seat.expiryDate.getTime() + (paymentMonths * 30 * 24 * 60 * 60 * 1000)),
+                  status: 'booked',
+                  displayStatus: 'red'
+                }
+              },
+              { new: true }
+            );
 
-        seatBooked = true;
-        seatInfo = user.seat;
+            if (!bookedSeat) {
+              console.error(`❌ Seat ${targetSeatNumber} extension failed - seat not found or not owned by user`);
+              return res.status(409).json({
+                success: false,
+                error: 'Seat extension failed - seat not found or not owned by you'
+              });
+            }
 
-        // Emit socket event
-        const io = req.app.get('io');
-        if (io) {
-          io.emit('seat:booked', {
-            seatNumber: parseInt(seatNum),
-            userId: userFirebaseUid,
-            userName: user.fullName
+            // Update user.seat expiry
+            user.seat.expiryDate = bookedSeat.expiryDate;
+            seatBooked = true;
+            seatInfo = user.seat;
+            
+            console.log(`✅ Extended seat ${targetSeatNumber} until ${bookedSeat.expiryDate}`);
+            
+          } else {
+            // ATOMIC NEW BOOKING: Update only if seat is available
+            console.log(`📝 Creating new booking for seat ${targetSeatNumber}`);
+            console.log(`🔍 Checking seat availability with query:`, {
+              seatNumber: parseInt(targetSeatNumber),
+              condition: '$or: [isBooked: false] OR [isBooked: true AND expired]'
+            });
+            
+            bookedSeat = await Seat.findOneAndUpdate(
+              {
+                seatNumber: parseInt(targetSeatNumber),
+                $or: [
+                  { isBooked: false },
+                  { isBooked: true, expiryDate: { $lt: new Date() } } // Expired seats
+                ]
+              },
+              {
+                $set: {
+                  isBooked: true,
+                  bookedBy: user._id,
+                  bookedByFirebaseUid: user.firebaseUid,
+                  bookingDate,
+                  expiryDate,
+                  shift,
+                  status: 'booked',
+                  displayStatus: 'red'
+                },
+                $push: {
+                  bookingHistory: {
+                    userId: user._id,
+                    firebaseUid: user.firebaseUid,
+                    bookedAt: bookingDate
+                  }
+                }
+              },
+              { new: true }
+            );
+
+            console.log(`📊 Seat booking query result:`, bookedSeat ? 'SUCCESS' : 'FAILED (null)');
+
+            if (!bookedSeat) {
+              console.error(`❌ Seat ${targetSeatNumber} booking failed - seat already booked or not found`);
+              
+              // Check if seat exists at all
+              const existingSeat = await Seat.findOne({ seatNumber: parseInt(targetSeatNumber) });
+              
+              if (!existingSeat) {
+                console.error(`❌ Seat ${targetSeatNumber} does not exist in database`);
+                return res.status(404).json({
+                  success: false,
+                  error: `Seat ${targetSeatNumber} not found`
+                });
+              }
+              
+              // Seat exists but is booked
+              console.error(`❌ Seat ${targetSeatNumber} is already booked:`, {
+                isBooked: existingSeat.isBooked,
+                bookedBy: existingSeat.bookedByFirebaseUid,
+                expiryDate: existingSeat.expiryDate,
+                status: existingSeat.status
+              });
+              
+              return res.status(409).json({
+                success: false,
+                error: `Seat ${targetSeatNumber} is already booked by another user`
+              });
+            }
+
+            // Update user.seat
+            user.seat = {
+              seatNumber: parseInt(targetSeatNumber),
+              seatStatus: 'active',
+              libraryName: 'Shivika Digital Library',
+              shift,
+              bookingDate,
+              expiryDate
+            };
+            
+            seatBooked = true;
+            seatInfo = user.seat;
+            
+            console.log(`✅ Successfully booked seat ${targetSeatNumber} for ${user.fullName}`);
+            console.log(`Seat details:`, {
+              seatNumber: bookedSeat.seatNumber,
+              bookedBy: bookedSeat.bookedByFirebaseUid,
+              expiryDate: bookedSeat.expiryDate
+            });
+          }
+
+          // Update payment record
+          payment.seatNumber = parseInt(targetSeatNumber);
+          payment.seatBookedSuccessfully = true;
+          
+          // Socket notification
+          const io = req.app.get('io');
+          if (io) {
+            io.emit('seat:booked', { 
+              seatNumber: parseInt(targetSeatNumber),
+              bookedBy: user.firebaseUid,
+              userName: user.fullName
+            });
+          }
+          
+        } catch (seatError) {
+          console.error('❌ SEAT BOOKING ERROR:', seatError);
+          console.error('Error name:', seatError.name);
+          console.error('Error message:', seatError.message);
+          console.error('Error stack:', seatError.stack);
+          
+          return res.status(500).json({
+            success: false,
+            error: 'Failed to book seat due to server error',
+            details: process.env.NODE_ENV === 'development' ? seatError.message : undefined
           });
         }
-
-        console.log(`✅ Seat ${seatNum} booked for ${user.fullName}`);
-      } else {
-        console.warn(`⚠️ Seat ${seatNum} is already booked`);
-      }
-    } else if (seatNum && user.hasActiveSeat) {
-      // Extend existing seat booking
-      const seat = await Seat.findOne({ seatNumber: user.seat.seatNumber });
-      if (seat) {
-        await seat.extendBooking(months);
       }
 
-      user.seat.expiryDate = new Date(user.seat.expiryDate);
-      user.seat.expiryDate.setMonth(user.seat.expiryDate.getMonth() + months);
+      // ===== STEP 7: SAVE USER (ONCE) =====
+      console.log('💾 Saving user record...');
+      console.log('User data:', {
+        firebaseUid: user.firebaseUid,
+        paymentHistoryLength: user.paymentHistory.length,
+        seat: user.seat
+      });
       
-      seatBooked = true;
-      seatInfo = user.seat;
-      console.log(`✅ Seat ${user.seat.seatNumber} extended for ${user.fullName}`);
-    }
+      await user.save();
+      console.log('✅ User saved');
+      
+      // ===== STEP 8: SAVE PAYMENT (ONCE) =====
+      console.log('💾 Saving payment record...');
+      console.log('Payment data:', {
+        orderId: payment.orderId,
+        paymentId: payment.paymentId,
+        status: payment.status,
+        seatNumber: payment.seatNumber
+      });
+      
+      await payment.save();
+      console.log('✅ Payment saved');
 
-    await user.save();
-
-    console.log(`✅ Payment verified: ${razorpay_payment_id} for ${user.fullName}`);
-
-    // Return success with bookingConfirmed flag
-    res.json({
-      success: true,
-      message: 'Payment verified successfully',
-      bookingConfirmed: seatBooked,
-      payment: {
-        paymentId: razorpay_payment_id,
-        orderId: razorpay_order_id,
-        amount: payment.amount,
-        receiptNumber: payment.receiptNumber,
-        status: 'success'
-      },
-      seat: seatInfo,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        nextDueDate
+      // ===== STEP 9: FIREBASE SYNC (AFTER ALL DB COMMITS) =====
+      if (bookedSeat && seatBooked) {
+        try {
+          console.log('🔄 Syncing seat to Firebase...');
+          await syncSeatToFirebase(bookedSeat);
+          console.log('✅ Firebase sync complete');
+        } catch (firebaseError) {
+          // Firebase sync failure is non-critical
+          console.error('⚠️ Firebase sync failed (non-critical):', firebaseError.message);
+        }
       }
-    });
 
-  } catch (error) {
-    console.error('❌ Verify payment error:', error);
-    console.error('Stack trace:', error.stack);
-    
-    // Check for specific common errors
-    if (error.message && error.message.includes('key')) {
-      console.error('⚠️ Potential missing Razorpay key issue');
-    }
-    if (error.name === 'ValidationError') {
-      console.error('⚠️ MongoDB validation error:', error.message);
+      // ===== STEP 10: SUCCESS RESPONSE =====
+      return res.status(200).json({
+        success: true,
+        message: 'Payment verified and seat booked',
+        bookingConfirmed: seatBooked,
+        payment: {
+          paymentId: razorpay_payment_id,
+          orderId: razorpay_order_id,
+          receipt: payment.receiptNumber
+        },
+        seat: seatInfo
+      });
+
+    } catch (dbError) {
+      console.error('❌ Database Write Error:', dbError);
+      console.error('Error name:', dbError.name);
+      console.error('Error message:', dbError.message);
+      console.error('Error stack:', dbError.stack);
+      
+      if (dbError.errors) {
+        console.error('Validation errors:', JSON.stringify(dbError.errors, null, 2));
+      }
+      
+      // Handle specific MongoDB errors
+      if (dbError.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          error: 'Duplicate record detected',
+          details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+        });
+      }
+      
+      if (dbError.name === 'ValidationError') {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid data format',
+          details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+        });
+      }
+      
+      // Generic database error
+      return res.status(500).json({
+        success: false,
+        error: 'Database error while saving payment/booking',
+        details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+      });
     }
 
-    // Return 400 for client errors, 500 for server errors
-    const statusCode = error.name === 'ValidationError' ? 400 : 500;
-    
-    res.status(statusCode).json({
+  } catch (criticalError) {
+    console.error('❌ CRITICAL UNHANDLED ERROR in verifyPayment:', criticalError);
+    return res.status(500).json({
       success: false,
-      error: 'Failed to verify payment',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: 'Internal server error during verification'
     });
   }
 };

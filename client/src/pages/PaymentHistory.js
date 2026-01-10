@@ -167,17 +167,20 @@ export default function PaymentHistory() {
    * Get hours/months display based on payment type
    */
   const getDurationDisplay = (payment) => {
+    // Get months from either 'months' or 'monthsPaidFor' field
+    const months = payment.months || payment.monthsPaidFor;
+    
     // For seat bookings, show months and daily hours
-    if (payment.type === 'seat_booking' && payment.months) {
+    if (payment.type === 'seat_booking' && months) {
       if (payment.dailyHours) {
-        return `${payment.months}mo / ${payment.dailyHours}hr/day`;
+        return `${months} ${months === 1 ? 'Month' : 'Months'} / ${payment.dailyHours}hr/day`;
       }
-      return `${payment.months} month(s)`;
+      return `${months} ${months === 1 ? 'Month' : 'Months'}`;
     }
     
     // For fee payments with months
-    if (payment.months) {
-      return `${payment.months} month(s)`;
+    if (months) {
+      return `${months} ${months === 1 ? 'Month' : 'Months'}`;
     }
     
     // Legacy: hours field

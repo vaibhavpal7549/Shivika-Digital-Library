@@ -40,4 +40,5 @@ firebase-debug.log
 # Markdown Documentation Files
 *.md
 !README.md
+!SECURITY.md
 

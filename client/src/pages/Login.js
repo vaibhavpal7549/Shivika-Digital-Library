@@ -132,8 +132,8 @@ export default function Login() {
       if (result && result.user) {
         console.log('✅ Login.js: Google Auth successful, checking MongoDB...');
         try {
-          console.log('🔵 Login.js: Calling /auth/login endpoint...');
-          await axios.post(`${API_URL}/auth/login`, {
+          console.log('🔵 Login.js: Calling /api/auth/login endpoint...');
+          await axios.post(`${API_URL}/api/auth/login`, {
             firebaseUid: result.user.uid,
             email: result.user.email,
             fullName: result.user.displayName,

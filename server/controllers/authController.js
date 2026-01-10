@@ -148,6 +148,7 @@ exports.signup = async (req, res) => {
   }
 };
 
+
 /**
  * POST /auth/login
  * Update last login and return user data
@@ -156,7 +157,14 @@ exports.login = async (req, res) => {
   try {
     const { firebaseUid, email, fullName, photoURL } = req.body;
 
+    console.log('🔵 Login attempt:', {
+      firebaseUid: firebaseUid ? `${firebaseUid.substring(0, 10)}...` : 'missing',
+      email,
+      fullName
+    });
+
     if (!firebaseUid) {
+      console.error('❌ Login failed: No Firebase UID provided');
       return res.status(400).json({
         success: false,
         error: 'Firebase UID is required'
@@ -164,7 +172,11 @@ exports.login = async (req, res) => {
     }
 
     const user = await User.findOne({ firebaseUid });
+    
     if (!user) {
+      console.log(`ℹ️ User not found in MongoDB for UID: ${firebaseUid.substring(0, 10)}...`);
+      console.log('ℹ️ This user needs to complete registration');
+      
       return res.status(404).json({
         success: false,
         error: 'User not found',
@@ -172,17 +184,32 @@ exports.login = async (req, res) => {
       });
     }
 
+    console.log(`✅ User found: ${user.fullName} (${user.email})`);
+    console.log(`   - Has phone: ${user.phone ? 'Yes' : 'No'}`);
+    console.log(`   - Profile complete: ${user.phone ? 'Yes' : 'No'}`);
+
     // Update user details from login payload (Sync Google Data)
     let updates = { lastLogin: new Date() };
     
     // Only update fields if they are provided and different
-    if (email && user.email !== email) updates.email = email;
-    if (fullName && user.fullName !== fullName) updates.fullName = fullName;
-    if (photoURL && user.photoURL !== photoURL) updates.photoURL = photoURL;
+    if (email && user.email !== email) {
+      console.log(`   - Updating email: ${user.email} → ${email}`);
+      updates.email = email;
+    }
+    if (fullName && user.fullName !== fullName) {
+      console.log(`   - Updating name: ${user.fullName} → ${fullName}`);
+      updates.fullName = fullName;
+    }
+    if (photoURL && user.photoURL !== photoURL) {
+      console.log(`   - Updating photo URL`);
+      updates.photoURL = photoURL;
+    }
 
     // Apply updates
     Object.assign(user, updates);
     await user.save();
+
+    console.log(`✅ Login successful for: ${user.fullName}`);
 
     res.json({
       success: true,

@@ -135,8 +135,8 @@ export default function Signup() {
         
         // Check if user already exists in MongoDB via Login endpoint (syncs photo)
         try {
-          console.log('🔵 Signup.js: Calling /auth/login endpoint...');
-          await axios.post(`${API_URL}/auth/login`, {
+          console.log('🔵 Signup.js: Calling /api/auth/login endpoint...');
+          await axios.post(`${API_URL}/api/auth/login`, {
             firebaseUid: firebaseUser.uid,
             email: firebaseUser.email,
             fullName: firebaseUser.displayName,

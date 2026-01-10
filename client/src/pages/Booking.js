@@ -288,18 +288,18 @@ export default function Booking() {
         throw new Error(orderResponse.data.error || 'Failed to create order');
       }
 
-      const { order } = orderResponse.data;
+      const { orderId, amount, currency } = orderResponse.data;
       toast.dismiss(loadingToast);
       toast.success('Order created! Complete payment...', { duration: 2000 });
 
       // Configure Razorpay
       const options = {
         key: razorpayKey,
-        amount: order.amount,
-        currency: order.currency,
+        amount: amount,
+        currency: currency,
         name: 'Shivika Digital Library',
         description: `Seat ${seatNumber} - ${selectedMonths} month(s)`,
-        order_id: order.id,
+        order_id: orderId,
         
         handler: async function (response) {
           setPaymentStatus('verifying');
@@ -441,7 +441,8 @@ export default function Booking() {
       setLoading(false);
       
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('❌ Payment error:', error);
+      console.error('Error Stack:', error.stack);
       toast.dismiss(loadingToast);
       
       let errorMessage = 'Failed to initiate payment';
@@ -449,6 +450,10 @@ export default function Booking() {
         errorMessage = error.response.data.error;
       } else if (error.message) {
         errorMessage = error.message;
+      }
+      
+      if (errorMessage === 'next is not a function') {
+        errorMessage += ' (Check console for stack trace)';
       }
       
       setPaymentStatus('failed');

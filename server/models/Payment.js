@@ -374,15 +374,15 @@ PaymentSchema.statics.getPendingSync = function() {
 // ============================================
 // PRE-SAVE MIDDLEWARE
 // ============================================
-PaymentSchema.pre('save', function(next) {
-  // Auto-generate receipt number for verified payments
-  if (this.isModified('verificationStatus') && 
-      this.verificationStatus === 'verified' && 
-      !this.receiptNumber) {
-    this.receiptNumber = `RCP-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-  }
-  next();
-});
+// PaymentSchema.pre('save', function(next) {
+//   // Auto-generate receipt number for verified payments
+//   if (this.isModified('verificationStatus') && 
+//       this.verificationStatus === 'verified' && 
+//       !this.receiptNumber) {
+//     this.receiptNumber = `RCP-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+//   }
+//   next();
+// });
 
 module.exports = mongoose.model('Payment', PaymentSchema);
 

@@ -99,10 +99,17 @@ exports.createOrder = async (req, res) => {
     };
 
     console.log('🔵 Creating Razorpay order with options:', options);
-    const razorpayOrder = await razorpayInstance.orders.create(options);
-    console.log('✅ Razorpay order created:', razorpayOrder.id);
+    let razorpayOrder;
+    try {
+      razorpayOrder = await razorpayInstance.orders.create(options);
+      console.log('✅ Razorpay order created:', razorpayOrder.id);
+    } catch (rzpError) {
+      console.error('❌ Razorpay order creation failed:', rzpError);
+      throw rzpError;
+    }
 
     // Create payment record in MongoDB
+    console.log('🔵 Creating Payment record...');
     const payment = new Payment({
       userId: user._id,
       firebaseUid,
@@ -122,7 +129,14 @@ exports.createOrder = async (req, res) => {
       }
     });
 
-    await payment.save();
+    console.log('🔵 Saving Payment record...');
+    try {
+      await payment.save();
+      console.log('✅ Payment record saved');
+    } catch (saveError) {
+      console.error('❌ Payment save failed:', saveError);
+      throw saveError;
+    }
 
     console.log(`✅ Payment order created: ${razorpayOrder.id} for ${user.fullName}`);
 

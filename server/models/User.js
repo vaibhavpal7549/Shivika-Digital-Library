@@ -73,6 +73,10 @@ const SeatDetailsSchema = new mongoose.Schema({
   expiryDate: {
     type: Date,
     default: null
+  },
+  dailyHours: {
+    type: Number,
+    default: null
   }
 }, { _id: false });
 

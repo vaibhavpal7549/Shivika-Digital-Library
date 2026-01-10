@@ -320,7 +320,8 @@ export default function Booking() {
               seatNumber: parseInt(seatNumber),
               amount: totalFee, // Ensure amount is sent
               shift: feeCalculationMode === 'hourly' ? 'custom' : 'fullday',
-              months: selectedMonths
+              months: selectedMonths,
+              dailyHours: feeCalculationMode === 'hourly' ? dailyHours : null
             };
 
             console.log('🔵 Sending verification payload:', verifyPayload);

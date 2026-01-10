@@ -61,7 +61,8 @@ exports.createOrder = async (req, res) => {
       type = 'fee_payment',
       months = 1,
       seatNumber,
-      notes = {}
+      notes = {},
+      dailyHours // Extract dailyHours
     } = req.body;
 
     // Validation
@@ -95,6 +96,7 @@ exports.createOrder = async (req, res) => {
         months,
         seatNumber: seatNumber || user.seat?.seatNumber || '',
         userName: user.fullName,
+        dailyHours, // Pass dailyHours to Razorpay notes
         ...notes
       }
     };
@@ -121,6 +123,7 @@ exports.createOrder = async (req, res) => {
       status: 'pending',
       paymentMode: 'Online',
       monthsPaidFor: months,
+      dailyHours: dailyHours, // Save dailyHours to payment record
       seatNumber: seatNumber || user.seat?.seatNumber,
       periodStart: new Date(),
       periodEnd: new Date(Date.now() + months * 30 * 24 * 60 * 60 * 1000),
@@ -137,7 +140,8 @@ exports.createOrder = async (req, res) => {
       amount: payment.amount,
       paymentMode: payment.paymentMode,
       monthsPaidFor: payment.monthsPaidFor,
-      seatNumber: payment.seatNumber
+      seatNumber: payment.seatNumber,
+      dailyHours: payment.dailyHours
     }, null, 2));
 
     console.log('🔵 Saving Payment record...');
@@ -209,7 +213,8 @@ exports.verifyPayment = async (req, res) => {
       seatNumber,
       amount,
       shift = 'fullday',
-      months = 1
+      months = 1,
+      dailyHours // Extract dailyHours
     } = req.body;
 
     // 2. Strict Input Validation
@@ -363,7 +368,8 @@ exports.verifyPayment = async (req, res) => {
           userId: user._id,
           firebaseUid: user.firebaseUid,
           shift,
-          months: paymentMonths
+          months: paymentMonths,
+          dailyHours // Pass dailyHours to seat booking logic
         });
         
         const bookingDate = new Date();
@@ -387,7 +393,8 @@ exports.verifyPayment = async (req, res) => {
                 $set: {
                   expiryDate: new Date(user.seat.expiryDate.getTime() + (paymentMonths * 30 * 24 * 60 * 60 * 1000)),
                   status: 'booked',
-                  displayStatus: 'red'
+                  displayStatus: 'red',
+                  dailyHours: dailyHours || user.seat.dailyHours // Update dailyHours if provided, else keep existing
                 }
               },
               { new: true }
@@ -403,6 +410,7 @@ exports.verifyPayment = async (req, res) => {
 
             // Update user.seat expiry
             user.seat.expiryDate = bookedSeat.expiryDate;
+            user.seat.dailyHours = bookedSeat.dailyHours; // Update user.seat dailyHours
             seatBooked = true;
             seatInfo = user.seat;
             
@@ -433,7 +441,8 @@ exports.verifyPayment = async (req, res) => {
                   expiryDate,
                   shift,
                   status: 'booked',
-                  displayStatus: 'red'
+                  displayStatus: 'red',
+                  dailyHours: dailyHours // Set dailyHours for new booking
                 },
                 $push: {
                   bookingHistory: {
@@ -483,7 +492,8 @@ exports.verifyPayment = async (req, res) => {
               libraryName: 'Shivika Digital Library',
               shift,
               bookingDate,
-              expiryDate
+              expiryDate,
+              dailyHours // Set dailyHours in user.seat
             };
             
             seatBooked = true;
@@ -493,13 +503,15 @@ exports.verifyPayment = async (req, res) => {
             console.log(`Seat details:`, {
               seatNumber: bookedSeat.seatNumber,
               bookedBy: bookedSeat.bookedByFirebaseUid,
-              expiryDate: bookedSeat.expiryDate
+              expiryDate: bookedSeat.expiryDate,
+              dailyHours: bookedSeat.dailyHours
             });
           }
 
           // Update payment record
           payment.seatNumber = parseInt(targetSeatNumber);
           payment.seatBookedSuccessfully = true;
+          payment.dailyHours = dailyHours; // Ensure dailyHours is saved to payment record
           
           // Socket notification
           const io = req.app.get('io');
@@ -550,7 +562,8 @@ exports.verifyPayment = async (req, res) => {
         status: payment.status,
         verificationStatus: payment.verificationStatus,
         shift: payment.shift,
-        seatNumber: payment.seatNumber
+        seatNumber: payment.seatNumber,
+        dailyHours: payment.dailyHours
       });
       
       await payment.save();
@@ -763,7 +776,8 @@ exports.recordManualPayment = async (req, res) => {
       notes,
       adminId,
       seatNumber,
-      shift = 'fullday'
+      shift = 'fullday',
+      dailyHours // Extract dailyHours
     } = req.body;
 
     // Validation
@@ -801,6 +815,7 @@ exports.recordManualPayment = async (req, res) => {
       seatNumber: seatNumber || user.seat?.seatNumber,
       periodStart: new Date(),
       periodEnd: new Date(Date.now() + months * 30 * 24 * 60 * 60 * 1000),
+      dailyHours: dailyHours, // Save dailyHours to payment record
       verifiedAt: new Date(),
       adminAction: {
         actionType: 'manual_payment',
@@ -851,7 +866,7 @@ exports.recordManualPayment = async (req, res) => {
         const expiryDate = new Date();
         expiryDate.setMonth(expiryDate.getMonth() + months);
 
-        await seat.book(user, shift, months);
+        await seat.book(user, shift, months, dailyHours); // Pass dailyHours to seat.book
 
         user.seat = {
           seatNumber: parseInt(seatNum),
@@ -859,18 +874,22 @@ exports.recordManualPayment = async (req, res) => {
           libraryName: 'Shivika Digital Library',
           shift,
           bookingDate: new Date(),
-          expiryDate
+          expiryDate,
+          dailyHours // Save dailyHours to user.seat
         };
       }
     } else if (user.hasActiveSeat) {
       // Extend booking
       const seat = await Seat.findOne({ seatNumber: user.seat.seatNumber });
       if (seat) {
-        await seat.extendBooking(months);
+        await seat.extendBooking(months, dailyHours); // Pass dailyHours to seat.extendBooking
       }
 
       user.seat.expiryDate = new Date(user.seat.expiryDate);
       user.seat.expiryDate.setMonth(user.seat.expiryDate.getMonth() + months);
+      if (dailyHours) {
+        user.seat.dailyHours = dailyHours; // Update dailyHours if provided
+      }
     }
 
     await user.save();

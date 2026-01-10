@@ -203,6 +203,7 @@ exports.verifyPayment = async (req, res) => {
   try {
     // 1. Mandatory Debug Log
     console.log("VERIFY API HIT", JSON.stringify(req.body, null, 2));
+    console.log("Verification started");
 
     const {
       razorpay_order_id,
@@ -615,15 +616,17 @@ exports.verifyPayment = async (req, res) => {
           console.log('🔄 Syncing seat to Firebase...');
           
           // Inject user name for sync (since bookedBy is just ID)
-          bookedSeat.bookedBy = { fullName: user.fullName };
+          // Use toObject() to avoid Mongoose validation errors on ObjectId field
+          const seatForSync = bookedSeat.toObject();
+          seatForSync.bookedBy = { fullName: user.fullName };
           
-          const syncSuccess = await syncSeatToFirebase(bookedSeat);
+          const syncSuccess = await syncSeatToFirebase(seatForSync);
           
           if (syncSuccess) {
             console.log('✅ Firebase sync complete');
-            payment.firebaseSynced = true;
-            await payment.save();
-            console.log('✅ Payment firebaseSynced flag updated');
+            // payment.firebaseSynced removed from schema
+            // await payment.save(); 
+            // console.log('✅ Payment firebaseSynced flag updated');
           } else {
             console.warn('⚠️ Firebase sync returned false');
           }
@@ -634,6 +637,7 @@ exports.verifyPayment = async (req, res) => {
       }
 
       // ===== STEP 10: SUCCESS RESPONSE =====
+      console.log("Verification completed");
       return res.status(200).json({
         success: true,
         message: 'Payment verified and seat booked',

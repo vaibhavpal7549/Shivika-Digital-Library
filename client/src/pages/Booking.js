@@ -326,7 +326,11 @@ export default function Booking() {
 
             console.log('🔵 Sending verification payload:', verifyPayload);
 
-            const verifyResponse = await axios.post(`${API_BASE_URL}/api/verify-payment`, verifyPayload);
+            const verifyResponse = await axios.post(
+              `${API_BASE_URL}/api/verify-payment`, 
+              verifyPayload,
+              { timeout: 15000 } // 15s timeout safety
+            );
 
             console.log('✅ Backend verification response:', verifyResponse.data);
 
@@ -385,19 +389,26 @@ export default function Booking() {
           } catch (error) {
             toast.dismiss(verifyToast);
             console.error('❌ Payment verification error:', error);
+            
+            let errorMessage = error.response?.data?.error || error.message || 'Payment verification failed.';
+            
+            // Handle Timeout specifically
+            if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+              errorMessage = 'Verification taking too long. Please check Dashboard or Contact Support.';
+            }
+
             console.error('Error details:', {
               message: error.message,
               response: error.response?.data,
-              status: error.response?.status
+              status: error.response?.status,
+              code: error.code
             });
             
             setPaymentStatus('failed');
-            setLastError(error.response?.data?.error || error.message || 'Payment verification failed');
+            setLastError(errorMessage);
             setBookingCompleted(false);
             isProcessingPayment.current = false;
             
-            // Show detailed error message
-            const errorMessage = error.response?.data?.error || error.message || 'Payment verification failed. Please contact support.';
             toast.error(errorMessage, { duration: 7000 });
           }
         },

@@ -176,16 +176,7 @@ const PaymentSchema = new mongoose.Schema({
     type: String
   },
 
-  // Google Sheets sync
-  firebaseSynced: {
-    type: Boolean,
-    default: false
-  },
 
-  sheetsSynced: {
-    type: Boolean,
-    default: false
-  },
 
   syncError: {
     type: String
@@ -362,13 +353,7 @@ PaymentSchema.statics.getTotalRevenue = async function(startDate, endDate) {
   return result[0]?.total || 0;
 };
 
-// Get payments needing sync
-PaymentSchema.statics.getPendingSync = function() {
-  return this.find({
-    status: 'paid',
-    sheetsSynced: false
-  });
-};
+
 
 // ============================================
 // PRE-SAVE MIDDLEWARE

@@ -239,6 +239,14 @@ export function AuthProvider({ children }) {
    * Handle session invalidation (logged out by another device)
    */
   const handleSessionInvalidation = useCallback(async (reason = 'Session invalidated') => {
+    // Prevent duplicate calls
+    if (sessionCheckIntervalRef.current === 'invalidating') {
+      return;
+    }
+    
+    // Mark as invalidating
+    sessionCheckIntervalRef.current = 'invalidating';
+    
     setSessionValid(false);
     setSessionBlocked(true);
     setBlockReason(reason);
@@ -248,12 +256,8 @@ export function AuthProvider({ children }) {
       clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = null;
     }
-    if (sessionCheckIntervalRef.current) {
-      clearInterval(sessionCheckIntervalRef.current);
-      sessionCheckIntervalRef.current = null;
-    }
     
-    // Show notification
+    // Show notification (only once due to guard above)
     toast.error(`🔒 ${reason}`, { duration: 5000 });
     
     // Sign out the user

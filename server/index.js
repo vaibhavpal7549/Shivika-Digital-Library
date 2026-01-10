@@ -39,7 +39,8 @@ const {
 } = require('./routes');
 
 // Import services
-const googleSheetsService = require('./services/googleSheetsService');
+// const googleSheetsService = require('./services/googleSheetsService'); // REMOVED
+
 const { initializeJobs } = require('./jobs/scheduledJobs');
 const { initializeSocket } = require('./socket/socketManager');
 
@@ -117,19 +118,6 @@ if (process.env.NODE_ENV !== 'production') {
 
 const io = initializeSocket(server);
 app.set('io', io);
-
-// ============================================
-// GOOGLE SHEETS INITIALIZATION
-// ============================================
-
-(async () => {
-  try {
-    await googleSheetsService.initialize();
-    console.log('✅ Google Sheets service initialized');
-  } catch (error) {
-    console.warn('⚠️  Google Sheets not configured:', error.message);
-  }
-})();
 
 // ============================================
 // SCHEDULED JOBS INITIALIZATION

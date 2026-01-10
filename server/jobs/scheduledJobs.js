@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const { User, Seat, Payment } = require('../models');
-const googleSheetsService = require('../services/googleSheetsService');
+// const googleSheetsService = require('../services/googleSheetsService');
 
 /**
  * ============================================
@@ -87,9 +87,9 @@ const autoReleaseExpiredSeats = async () => {
           await user.save();
 
           // Sync to Google Sheets
-          googleSheetsService.syncUser(user).catch(err => {
-            console.error('⚠️  Sheets sync error:', err.message);
-          });
+          // googleSheetsService.syncUser(user).catch(err => {
+          //   console.error('⚠️  Sheets sync error:', err.message);
+          // });
         }
 
         console.log(`✅ Auto-released seat ${seat.seatNumber} (expired)`);
@@ -140,9 +140,9 @@ const markOverduePayments = async () => {
         await user.save();
 
         // Sync to Google Sheets
-        googleSheetsService.syncUser(user).catch(err => {
-          console.error('⚠️  Sheets sync error:', err.message);
-        });
+        // googleSheetsService.syncUser(user).catch(err => {
+        //   console.error('⚠️  Sheets sync error:', err.message);
+        // });
 
         console.log(`⚠️  Marked ${user.fullName} as overdue`);
 
@@ -182,7 +182,7 @@ const syncPendingToSheets = async () => {
     if (pendingUsers.length === 0) return 0;
 
     // Batch sync
-    await googleSheetsService.batchSyncUsers(pendingUsers);
+    // await googleSheetsService.batchSyncUsers(pendingUsers);
 
     // Mark as synced
     await User.updateMany(
@@ -211,7 +211,7 @@ const syncPendingToSheets = async () => {
  */
 const highlightExpiredInSheets = async () => {
   try {
-    await googleSheetsService.highlightExpiredSeats();
+    // await googleSheetsService.highlightExpiredSeats();
     console.log('✅ Highlighted expired seats in Google Sheets');
     return true;
   } catch (error) {

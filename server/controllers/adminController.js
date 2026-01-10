@@ -1,5 +1,5 @@
 const { User, Seat, Payment } = require('../models');
-const googleSheetsService = require('../services/googleSheetsService');
+
 
 /**
  * ============================================
@@ -150,7 +150,7 @@ exports.updateUser = async (req, res) => {
 
     const user = await User.findByIdAndUpdate(
       id,
-      { $set: updates, 'sheetsSync.syncStatus': 'pending' },
+      { $set: updates },
       { new: true }
     ).select('-password');
 
@@ -161,10 +161,7 @@ exports.updateUser = async (req, res) => {
       });
     }
 
-    // Sync to Google Sheets
-    googleSheetsService.syncUser(user).catch(err => {
-      console.error('⚠️  Sheets sync error:', err.message);
-    });
+
 
     res.json({
       success: true,
@@ -283,21 +280,15 @@ exports.updatePaymentStatus = async (req, res) => {
         user.seat.expiryDate.setMonth(user.seat.expiryDate.getMonth() + months);
       }
 
-      // Sync payment to sheets
-      googleSheetsService.syncPayment(payment, user).catch(err => {
-        console.error('⚠️  Sheets sync error:', err.message);
-      });
+
     }
 
-    user.sheetsSync.syncStatus = 'pending';
+
     await user.save();
 
     console.log(`✅ Admin updated payment for ${user.fullName}: ${previousStatus} → ${paymentStatus}`);
 
-    // Sync user to Google Sheets
-    googleSheetsService.syncUser(user).catch(err => {
-      console.error('⚠️  Sheets sync error:', err.message);
-    });
+
 
     res.json({
       success: true,
@@ -427,13 +418,10 @@ exports.forceReleaseSeat = async (req, res) => {
     // Update user if found
     if (user) {
       await user.releaseSeat();
-      user.sheetsSync.syncStatus = 'pending';
+
       await user.save();
 
-      // Sync to Google Sheets
-      googleSheetsService.syncUser(user).catch(err => {
-        console.error('⚠️  Sheets sync error:', err.message);
-      });
+
     }
 
     console.log(`✅ Admin released seat ${seatNum} (${reason})`);
@@ -537,15 +525,12 @@ exports.assignSeat = async (req, res) => {
     };
 
     user.payment.nextDueDate = expiryDate;
-    user.sheetsSync.syncStatus = 'pending';
+
     await user.save();
 
     console.log(`✅ Admin assigned seat ${seatNum} to ${user.fullName}`);
 
-    // Sync to Google Sheets
-    googleSheetsService.syncUser(user).catch(err => {
-      console.error('⚠️  Sheets sync error:', err.message);
-    });
+
 
     // Emit socket event
     const io = req.app.get('io');
@@ -644,29 +629,7 @@ exports.getDashboardStats = async (req, res) => {
   }
 };
 
-/**
- * POST /admin/sync-sheets
- * Force sync all data to Google Sheets
- */
-exports.syncToSheets = async (req, res) => {
-  try {
-    const users = await User.find({ role: { $ne: 'admin' } });
-    
-    await googleSheetsService.batchSyncUsers(users);
 
-    res.json({
-      success: true,
-      message: `Synced ${users.length} users to Google Sheets`
-    });
-
-  } catch (error) {
-    console.error('❌ Sync to sheets error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to sync to Google Sheets'
-    });
-  }
-};
 
 /**
  * DELETE /admin/user/:id
@@ -697,10 +660,7 @@ exports.deleteUser = async (req, res) => {
     user.deletedAt = new Date();
     await user.save();
 
-    // Remove from Google Sheets
-    googleSheetsService.deleteUserRow(user.firebaseUid).catch(err => {
-      console.error('⚠️  Sheets delete error:', err.message);
-    });
+
 
     console.log(`✅ User deleted: ${user.fullName}`);
 

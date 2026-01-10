@@ -1,7 +1,7 @@
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const { User, Seat, Payment } = require('../models');
-const googleSheetsService = require('../services/googleSheetsService');
+
 
 /**
  * ============================================
@@ -309,19 +309,9 @@ exports.verifyPayment = async (req, res) => {
       user.seat.expiryDate.setMonth(user.seat.expiryDate.getMonth() + months);
     }
 
-    // Mark for sheets sync
-    user.sheetsSync.syncStatus = 'pending';
     await user.save();
 
     console.log(`✅ Payment verified: ${razorpay_payment_id} for ${user.fullName}`);
-
-    // Sync to Google Sheets (background)
-    Promise.all([
-      googleSheetsService.syncUser(user),
-      googleSheetsService.syncPayment(payment, user)
-    ]).catch(err => {
-      console.error('⚠️  Sheets sync error:', err.message);
-    });
 
     res.json({
       success: true,
@@ -591,18 +581,9 @@ exports.recordManualPayment = async (req, res) => {
       user.seat.expiryDate.setMonth(user.seat.expiryDate.getMonth() + months);
     }
 
-    user.sheetsSync.syncStatus = 'pending';
     await user.save();
 
     console.log(`✅ Manual payment recorded: ₹${amount} for ${user.fullName} by admin`);
-
-    // Sync to Google Sheets
-    Promise.all([
-      googleSheetsService.syncUser(user),
-      googleSheetsService.syncPayment(payment, user)
-    ]).catch(err => {
-      console.error('⚠️  Sheets sync error:', err.message);
-    });
 
     res.json({
       success: true,

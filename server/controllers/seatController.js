@@ -1,5 +1,5 @@
 const { User, Seat, Payment } = require('../models');
-const googleSheetsService = require('../services/googleSheetsService');
+// const googleSheetsService = require('../services/googleSheetsService');
 
 /**
  * ============================================
@@ -232,9 +232,9 @@ exports.bookSeat = async (req, res) => {
     console.log(`✅ Seat ${seatNum} booked for ${user.fullName}`);
 
     // Sync to Google Sheets (background)
-    googleSheetsService.syncUser(user).catch(err => {
-      console.error('⚠️  Sheets sync error:', err.message);
-    });
+    // googleSheetsService.syncUser(user).catch(err => {
+    //   console.error('⚠️  Sheets sync error:', err.message);
+    // });
 
     // Emit socket event for real-time UI update
     const io = req.app.get('io');
@@ -324,9 +324,9 @@ exports.releaseSeat = async (req, res) => {
     console.log(`✅ Seat ${seatNum} released by ${user.fullName}`);
 
     // Sync to Google Sheets
-    googleSheetsService.syncUser(user).catch(err => {
-      console.error('⚠️  Sheets sync error:', err.message);
-    });
+    // googleSheetsService.syncUser(user).catch(err => {
+    //   console.error('⚠️  Sheets sync error:', err.message);
+    // });
 
     // Emit socket event
     const io = req.app.get('io');
@@ -439,9 +439,9 @@ exports.changeSeat = async (req, res) => {
     console.log(`✅ ${user.fullName} changed from seat ${oldSeatNumber} to ${newSeatNum}`);
 
     // Sync to Google Sheets
-    googleSheetsService.syncUser(user).catch(err => {
-      console.error('⚠️  Sheets sync error:', err.message);
-    });
+    // googleSheetsService.syncUser(user).catch(err => {
+    //   console.error('⚠️  Sheets sync error:', err.message);
+    // });
 
     // Emit socket events
     const io = req.app.get('io');

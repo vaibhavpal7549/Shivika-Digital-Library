@@ -19,7 +19,7 @@ const { adminController } = require('../controllers');
  * POST /admin/seat/release       - Force release seat
  * POST /admin/seat/assign        - Assign seat to user
  * GET  /admin/stats              - Get dashboard stats
- * POST /admin/sync-sheets        - Force sync to Google Sheets
+
  */
 
 // Get all users
@@ -52,7 +52,6 @@ router.post('/seat/release', adminController.forceReleaseSeat);
 // Assign seat to user
 router.post('/seat/assign', adminController.assignSeat);
 
-// Force sync to Google Sheets
-router.post('/sync-sheets', adminController.syncToSheets);
+
 
 module.exports = router;

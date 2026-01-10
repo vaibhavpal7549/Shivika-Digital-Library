@@ -11,9 +11,8 @@ const mongoose = require('mongoose');
  * - Current seat booking
  * - Payment summary
  * - Payment history
- * 
- * Google Sheets sync fields marked with [SYNC]
- */
+ */ 
+
 
 // Sub-schema for payment history entries
 const PaymentHistorySchema = new mongoose.Schema({
@@ -166,7 +165,7 @@ const UserSchema = new mongoose.Schema({
     index: true
   },
   
-  fullName: { // [SYNC to Google Sheets]
+  fullName: {
     type: String,
     required: [true, 'Full name is required'],
     trim: true,
@@ -183,7 +182,7 @@ const UserSchema = new mongoose.Schema({
     match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
   },
   
-  phone: { // [SYNC to Google Sheets]
+  phone: {
     type: String,
     required: [true, 'Phone number is required'],
     trim: true,
@@ -226,7 +225,7 @@ const UserSchema = new mongoose.Schema({
   },
 
   // ============================================
-  // SEAT DETAILS [SYNC to Google Sheets]
+  // SEAT DETAILS
   // ============================================
   seat: {
     type: SeatDetailsSchema,
@@ -234,7 +233,7 @@ const UserSchema = new mongoose.Schema({
   },
 
   // ============================================
-  // PAYMENT SUMMARY [SYNC to Google Sheets]
+  // PAYMENT SUMMARY
   // ============================================
   payment: {
     type: PaymentSummarySchema,
@@ -249,24 +248,7 @@ const UserSchema = new mongoose.Schema({
     default: []
   },
 
-  // ============================================
-  // GOOGLE SHEETS SYNC TRACKING
-  // ============================================
-  sheetsSync: {
-    lastSyncedAt: {
-      type: Date,
-      default: null
-    },
-    sheetRowId: {
-      type: Number,
-      default: null
-    },
-    syncStatus: {
-      type: String,
-      enum: ['synced', 'pending', 'failed', null],
-      default: null
-    }
-  }
+
 
 }, {
   timestamps: true,
@@ -373,29 +355,7 @@ UserSchema.methods.addPayment = async function(paymentData) {
   return this.save();
 };
 
-// Get data for Google Sheets sync
-UserSchema.methods.getSheetsSyncData = function() {
-  return {
-    oderId: String(this._id),
-    fullName: this.fullName,
-    phone: this.phone,
-    email: this.email,
-    seatNumber: this.seat?.seatNumber || 'N/A',
-    shift: this.seat?.shift || 'N/A',
-    paymentStatus: this.payment?.paymentStatus || 'pending',
-    totalPaid: this.payment?.totalPaid || 0,
-    lastPaymentDate: this.payment?.lastPaymentDate 
-      ? new Date(this.payment.lastPaymentDate).toLocaleDateString('en-IN')
-      : 'N/A',
-    nextDueDate: this.payment?.nextDueDate
-      ? new Date(this.payment.nextDueDate).toLocaleDateString('en-IN')
-      : 'N/A',
-    expiryDate: this.seat?.expiryDate
-      ? new Date(this.seat.expiryDate).toLocaleDateString('en-IN')
-      : 'N/A',
-    seatStatus: this.seat?.seatStatus || 'N/A'
-  };
-};
+
 
 // ============================================
 // STATIC METHODS
@@ -420,11 +380,6 @@ UserSchema.statics.findOverduePayments = function() {
   });
 };
 
-// Find users needing Google Sheets sync
-UserSchema.statics.findPendingSync = function() {
-  return this.find({
-    'sheetsSync.syncStatus': 'pending'
-  });
-};
+
 
 module.exports = mongoose.model('User', UserSchema);

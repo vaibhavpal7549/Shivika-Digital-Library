@@ -324,7 +324,10 @@ export default function Dashboard() {
                         </div>
                         <h3 className="text-2xl md:text-3xl font-bold">Seat {bookedSeat.seatNumber}</h3>
                         <p className="text-green-100 text-sm mt-1">
-                          {bookedSeat.months} month(s) • {bookedSeat.dailyHours ? `${bookedSeat.dailyHours} hrs/day` : 'Full day'}
+                          {(() => {
+                            const months = bookedSeat.months || bookedSeat.monthsPaidFor || 1;
+                            return months === 1 ? '1 Month' : `${months} Months`;
+                          })()} • {bookedSeat.dailyHours ? `${bookedSeat.dailyHours} hrs/day` : 'Full day'}
                         </p>
                       </div>
                     </div>

@@ -643,21 +643,22 @@ export default function Booking() {
 
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Link to="/seats" className="text-blue-600 hover:text-blue-800 flex items-center gap-2">
+        <div className="mb-8">
+          <Link to="/seats" className="text-blue-600 hover:text-blue-800 flex items-center gap-2 mb-4">
             ← Back to Seats
           </Link>
-          <h1 className="text-2xl font-bold text-gray-800">Book Seat {seatNumber}</h1>
+          <h1 className="text-2xl font-bold text-gray-800 text-center">Book Seat {seatNumber}</h1>
         </div>
 
         {/* Main Card */}
         <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-          {/* Seat Preview */}
-          <div className="text-center mb-8">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <span className="text-4xl font-bold text-white">{seatNumber}</span>
+          {/* Seat Preview - Centered */}
+          <div className="flex flex-col items-center justify-center mb-8 py-6 bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border border-slate-100">
+            <div className="w-28 h-28 bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/30 transform hover:scale-105 transition-all duration-300 mb-4">
+              <span className="text-5xl font-bold text-white drop-shadow-lg">{seatNumber}</span>
             </div>
-            <span className="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+            <span className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold shadow-sm">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               Available
             </span>
           </div>

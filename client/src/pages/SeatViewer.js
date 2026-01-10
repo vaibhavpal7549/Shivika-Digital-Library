@@ -195,7 +195,18 @@ export default function SeatViewer() {
                     {bookedSeat.dailyHours && ` • ${bookedSeat.dailyHours} hrs/day`}
                   </p>
                   <p className="text-green-600 text-xs sm:text-sm mt-1">
-                    Booked on: {new Date(bookedSeat.bookedAt).toLocaleDateString()}
+                    Booked on: {
+                      (() => {
+                        const dateValue = bookedSeat.bookedAt || bookedSeat.createdAt || bookedSeat.paidAt;
+                        if (!dateValue) return 'N/A';
+                        const date = new Date(dateValue);
+                        return isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        });
+                      })()
+                    }
                   </p>
                 </div>
               </div>

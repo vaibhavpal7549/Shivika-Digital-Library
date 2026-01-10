@@ -1,4 +1,5 @@
 const { User, Seat, Payment } = require('../models');
+const { syncSeatToFirebase } = require('../services/firebaseSyncService');
 // const googleSheetsService = require('../services/googleSheetsService');
 
 /**
@@ -229,6 +230,9 @@ exports.bookSeat = async (req, res) => {
 
     console.log(`✅ Seat ${seatNum} booked for ${user.fullName}`);
 
+    // Sync to Firebase (Real-time update)
+    await syncSeatToFirebase(seat);
+
     // Sync to Google Sheets (background)
     // googleSheetsService.syncUser(user).catch(err => {
     //   console.error('⚠️  Sheets sync error:', err.message);
@@ -321,6 +325,9 @@ exports.releaseSeat = async (req, res) => {
 
     console.log(`✅ Seat ${seatNum} released by ${user.fullName}`);
 
+    // Sync to Firebase
+    await syncSeatToFirebase(seat);
+
     // Sync to Google Sheets
     // googleSheetsService.syncUser(user).catch(err => {
     //   console.error('⚠️  Sheets sync error:', err.message);
@@ -401,9 +408,9 @@ exports.changeSeat = async (req, res) => {
     }
 
     // Release old seat
-    const oldSeat = await Seat.findOne({ seatNumber: oldSeatNumber });
     if (oldSeat) {
       await oldSeat.release('user_request');
+      await syncSeatToFirebase(oldSeat);
     }
 
     // Calculate remaining validity
@@ -433,6 +440,11 @@ exports.changeSeat = async (req, res) => {
     };
 
     await user.save();
+
+    await user.save();
+
+    // Sync new seat to Firebase
+    await syncSeatToFirebase(newSeat);
 
     console.log(`✅ ${user.fullName} changed from seat ${oldSeatNumber} to ${newSeatNum}`);
 

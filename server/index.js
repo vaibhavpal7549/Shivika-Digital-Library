@@ -25,6 +25,8 @@ const dotenv = require('dotenv');
 const http = require('http');
 const admin = require('firebase-admin');
 const connectDB = require('./config/db');
+const { Seat } = require('./models');
+const { syncSeatsToFirebase } = require('./services/firebaseSyncService');
 
 // Load environment variables
 dotenv.config();
@@ -295,6 +297,14 @@ server.listen(PORT, () => {
   console.log('  GET  /api/admin/users         - Admin: Get users');
   console.log('  GET  /api/admin/stats         - Admin: Dashboard');
   console.log('');
+
+  // Initial Sync of Seats to Firebase
+  Seat.find().then(seats => {
+    console.log(`📡 Initializing Firebase sync for ${seats.length} seats...`);
+    syncSeatsToFirebase(seats);
+  }).catch(err => {
+    console.error('❌ Initial sync failed:', err);
+  });
 });
 
 // ============================================

@@ -170,10 +170,19 @@ exports.createOrder = async (req, res) => {
  */
 exports.verifyPayment = async (req, res) => {
   try {
+    console.log('🔵 Payment verification request:', {
+      orderId: req.body.razorpay_order_id,
+      paymentId: req.body.razorpay_payment_id,
+      hasSignature: !!req.body.razorpay_signature,
+      seatNumber: req.body.seatNumber,
+      userId: req.body.userId || req.body.firebaseUid
+    });
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
+      userId,
       firebaseUid,
       seatNumber,
       shift = 'fullday'
@@ -181,9 +190,19 @@ exports.verifyPayment = async (req, res) => {
 
     // Validation
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      console.error('❌ Missing payment details');
       return res.status(400).json({
         success: false,
         error: 'Payment details are incomplete'
+      });
+    }
+
+    // Check for Razorpay secret key
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      console.error('❌ RAZORPAY_KEY_SECRET not configured');
+      return res.status(500).json({
+        success: false,
+        error: 'Payment gateway not configured properly'
       });
     }
 
@@ -196,18 +215,23 @@ exports.verifyPayment = async (req, res) => {
 
     const isValid = expectedSignature === razorpay_signature;
 
+    console.log('🔐 Signature verification:', isValid ? 'PASSED' : 'FAILED');
+
     // Find payment record
     const payment = await Payment.findOne({ orderId: razorpay_order_id });
     if (!payment) {
+      console.error('❌ Payment record not found for order:', razorpay_order_id);
       return res.status(404).json({
         success: false,
         error: 'Payment record not found'
       });
     }
 
-    // Find user
-    const user = await User.findOne({ firebaseUid: payment.firebaseUid });
+    // Find user (use firebaseUid from request or from payment record)
+    const userFirebaseUid = firebaseUid || userId || payment.firebaseUid;
+    const user = await User.findOne({ firebaseUid: userFirebaseUid });
     if (!user) {
+      console.error('❌ User not found for UID:', userFirebaseUid);
       return res.status(404).json({
         success: false,
         error: 'User not found'
@@ -216,11 +240,12 @@ exports.verifyPayment = async (req, res) => {
 
     if (!isValid) {
       // Payment verification failed
+      console.error('❌ Signature mismatch - payment verification failed');
       await payment.markFailed('verification_failed');
       
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        error: 'Payment verification failed'
+        error: 'Payment verification failed - signature mismatch'
       });
     }
 
@@ -256,6 +281,9 @@ exports.verifyPayment = async (req, res) => {
     user.payment.nextDueDate = nextDueDate;
     user.payment.totalAmountPaid = (user.payment.totalAmountPaid || 0) + payment.amount;
 
+    let seatBooked = false;
+    let seatInfo = null;
+
     // Book seat if specified
     const seatNum = seatNumber || payment.seatNumber;
     if (seatNum && !user.hasActiveSeat) {
@@ -288,15 +316,22 @@ exports.verifyPayment = async (req, res) => {
         payment.seatBookedSuccessfully = true;
         await payment.save();
 
+        seatBooked = true;
+        seatInfo = user.seat;
+
         // Emit socket event
         const io = req.app.get('io');
         if (io) {
           io.emit('seat:booked', {
             seatNumber: parseInt(seatNum),
-            userId: firebaseUid,
+            userId: userFirebaseUid,
             userName: user.fullName
           });
         }
+
+        console.log(`✅ Seat ${seatNum} booked for ${user.fullName}`);
+      } else {
+        console.warn(`⚠️ Seat ${seatNum} is already booked`);
       }
     } else if (seatNum && user.hasActiveSeat) {
       // Extend existing seat booking
@@ -307,15 +342,21 @@ exports.verifyPayment = async (req, res) => {
 
       user.seat.expiryDate = new Date(user.seat.expiryDate);
       user.seat.expiryDate.setMonth(user.seat.expiryDate.getMonth() + months);
+      
+      seatBooked = true;
+      seatInfo = user.seat;
+      console.log(`✅ Seat ${user.seat.seatNumber} extended for ${user.fullName}`);
     }
 
     await user.save();
 
     console.log(`✅ Payment verified: ${razorpay_payment_id} for ${user.fullName}`);
 
+    // Return success with bookingConfirmed flag
     res.json({
       success: true,
       message: 'Payment verified successfully',
+      bookingConfirmed: seatBooked,
       payment: {
         paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
@@ -323,7 +364,7 @@ exports.verifyPayment = async (req, res) => {
         receiptNumber: payment.receiptNumber,
         status: 'success'
       },
-      seat: user.seat,
+      seat: seatInfo,
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -333,12 +374,27 @@ exports.verifyPayment = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Verify payment error:', error);
-    res.status(500).json({
+    console.error('Stack trace:', error.stack);
+    
+    // Check for specific common errors
+    if (error.message && error.message.includes('key')) {
+      console.error('⚠️ Potential missing Razorpay key issue');
+    }
+    if (error.name === 'ValidationError') {
+      console.error('⚠️ MongoDB validation error:', error.message);
+    }
+
+    // Return 400 for client errors, 500 for server errors
+    const statusCode = error.name === 'ValidationError' ? 400 : 500;
+    
+    res.status(statusCode).json({
       success: false,
-      error: 'Failed to verify payment'
+      error: 'Failed to verify payment',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
+
 
 /**
  * GET /payment/user/:firebaseUid

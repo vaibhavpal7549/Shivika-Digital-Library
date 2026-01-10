@@ -215,11 +215,8 @@ exports.bookSeat = async (req, res) => {
     user.payment.paymentStatus = 'paid';
     user.payment.nextDueDate = nextDueDate;
 
-    // Mark for sheets sync
-    user.sheetsSync = {
-      ...user.sheetsSync,
-      syncStatus: 'pending'
-    };
+    // Mark for sheets sync (REMOVED)
+    // user.sheetsSync = { ... };
 
     await user.save();
 

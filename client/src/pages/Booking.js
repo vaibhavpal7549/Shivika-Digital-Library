@@ -306,62 +306,41 @@ export default function Booking() {
           const verifyToast = toast.loading('Verifying payment...');
           
           try {
-            // STEP 1: Verify payment on backend
+            console.log('🔵 Payment successful, verifying with backend...', {
+              orderId: response.razorpay_order_id,
+              paymentId: response.razorpay_payment_id
+            });
+
+            // STEP 1: Verify payment on backend (backend handles booking atomically)
             const verifyResponse = await axios.post(`${API_BASE_URL}/api/verify-payment`, {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
-              seatNumber,
-              months: selectedMonths,
-              userId: currentUser.uid,
-              type: 'seat_booking',
+              firebaseUid: currentUser.uid,  // Send firebaseUid (not userId)
+              seatNumber: parseInt(seatNumber),
+              shift: feeCalculationMode === 'hourly' ? 'custom' : 'fullday',
+              months: selectedMonths
             });
 
+            console.log('✅ Backend verification response:', verifyResponse.data);
+
             if (!verifyResponse.data.success) {
-              throw new Error('Payment verification failed');
+              throw new Error(verifyResponse.data.error || 'Payment verification failed');
+            }
+
+            // Check if booking was confirmed
+            if (!verifyResponse.data.bookingConfirmed) {
+              console.warn('⚠️ Payment verified but seat was not booked');
+              throw new Error('Payment successful but seat booking failed. Please contact support.');
             }
 
             toast.dismiss(verifyToast);
             setBookingCompleted(true);
 
-            // STEP 2: Book seat via backend API (MongoDB source of truth)
-            // Backend handles: MongoDB update → Firebase sync → Socket.IO emit
-            const bookingEndpoint = changeSeatInProgress && userExistingSeat
-              ? '/api/seats/change'
-              : '/api/seats/book';
-            
-            const bookingPayload = changeSeatInProgress && userExistingSeat
-              ? {
-                  firebaseUid: currentUser.uid,
-                  newSeatNumber: parseInt(seatNumber),
-                  months: selectedMonths,
-                  dailyHours: feeCalculationMode === 'hourly' ? dailyHours : null,
-                  amount: totalFee,
-                  paymentId: response.razorpay_payment_id,
-                  orderId: response.razorpay_order_id,
-                  shift: feeCalculationMode === 'hourly' ? 'custom' : 'fullday'
-                }
-              : {
-                  firebaseUid: currentUser.uid,
-                  seatNumber: parseInt(seatNumber),
-                  months: selectedMonths,
-                  dailyHours: feeCalculationMode === 'hourly' ? dailyHours : null,
-                  amount: totalFee,
-                  paymentId: response.razorpay_payment_id,
-                  orderId: response.razorpay_order_id,
-                  shift: feeCalculationMode === 'hourly' ? 'custom' : 'fullday'
-                };
-
-            const bookingResponse = await axios.post(`${API_BASE_URL}${bookingEndpoint}`, bookingPayload);
-
-            if (!bookingResponse.data.success) {
-              throw new Error(bookingResponse.data.error || 'Booking failed');
-            }
-
-            // Success!
+            // Success! Backend has already booked the seat
             setBookedSeatInfo({
               seatNumber: parseInt(seatNumber),
-              bookedAt: bookingResponse.data.booking?.bookedAt,
+              bookedAt: new Date().toISOString(),
               paymentId: response.razorpay_payment_id,
               orderId: response.razorpay_order_id,
               amount: totalFee,
@@ -390,13 +369,21 @@ export default function Booking() {
 
           } catch (error) {
             toast.dismiss(verifyToast);
-            console.error('Booking error:', error);
+            console.error('❌ Payment verification error:', error);
+            console.error('Error details:', {
+              message: error.message,
+              response: error.response?.data,
+              status: error.response?.status
+            });
+            
             setPaymentStatus('failed');
-            setLastError(error.message || 'Booking failed');
+            setLastError(error.response?.data?.error || error.message || 'Payment verification failed');
             setBookingCompleted(false);
             isProcessingPayment.current = false;
             
-            toast.error(error.response?.data?.error || error.message || 'Booking failed. Please contact support.');
+            // Show detailed error message
+            const errorMessage = error.response?.data?.error || error.message || 'Payment verification failed. Please contact support.';
+            toast.error(errorMessage, { duration: 7000 });
           }
         },
         

@@ -305,21 +305,30 @@ export default function Gallery() {
         {/* Filter Tabs */}
         <div className="flex gap-3 mb-8 flex-wrap">
           {[
-            { value: 'all', label: '📋 All', icon: '📋' },
-            { value: 'images', label: '📸 Photos', icon: '📸' },
-            { value: 'videos', label: '🎬 Videos', icon: '🎬' },
+            { value: 'all', label: 'All', icon: '📋', color: 'purple' },
+            { value: 'images', label: 'Photos', icon: '📸', color: 'blue' },
+            { value: 'videos', label: 'Videos', icon: '🎬', color: 'pink' },
           ].map(tab => (
             <button
               key={tab.value}
               onClick={() => setFilter(tab.value)}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95 ${
+              className={`group relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center gap-3 ${
                 filter === tab.value
-                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:border-purple-300 hover:shadow-md'
+                  ? `bg-gradient-to-r from-${tab.color}-600 to-${tab.color}-700 text-white shadow-lg shadow-${tab.color}-500/30`
+                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-' + tab.color + '-300 hover:shadow-md'
               }`}
             >
-              <span className="mr-2">{tab.icon}</span>
-              {tab.label}
+              <span className={`text-2xl transition-transform duration-300 ${
+                filter === tab.value ? 'scale-110' : 'group-hover:scale-110'
+              }`}>
+                {tab.icon}
+              </span>
+              <span className="font-bold">{tab.label}</span>
+              {filter === tab.value && (
+                <span className="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                  {tab.value === 'all' ? stats.totalItems : tab.value === 'images' ? stats.imageCount : stats.videoCount}
+                </span>
+              )}
             </button>
           ))}
         </div>

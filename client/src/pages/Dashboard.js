@@ -443,7 +443,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* SECONDARY ZONE - Fee & Information */}
+          {/* SECONDARY ZONE - Fee & Support */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Fee Calculator Card */}
             <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border border-gray-100">
@@ -505,64 +505,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Quick Session Info Card */}
-            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border border-gray-100">
-              <h3 className="font-semibold text-gray-900 mb-5 flex items-center gap-2">
-                <span className="text-xl">⏱️</span> Your Session
-              </h3>
-
-              <div className="space-y-3">
-                {/* Session Stats - Empty State with Guidance */}
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 text-center">
-                  <p className="text-2xl font-bold text-gray-900">0</p>
-                  <p className="text-sm text-gray-600 mt-1">Active Sessions</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    📌 No active bookings yet. Book a seat to get started!
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-100 text-center">
-                    <p className="text-lg font-bold text-purple-700">0 hrs</p>
-                    <p className="text-xs text-purple-600 mt-1">Total Hours</p>
-                  </div>
-                  <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-100 text-center">
-                    <p className="text-lg font-bold text-green-700">₹0</p>
-                    <p className="text-xs text-green-600 mt-1">Spent</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* TERTIARY ZONE - Support & Additional Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Location Card */}
-            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100">
-              <h3 className="font-semibold text-gray-900 p-6 pb-4 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-red-600" strokeWidth={2} />
-                <span>Location</span>
-              </h3>
-              
-              <div className="px-6 pb-6">
-                <div className="w-full aspect-video rounded-lg overflow-hidden mb-4 border border-gray-200 bg-gray-100">
-                  <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3769.1234567890!2d72.8776559!3d19.0759837!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTnCsDA0JzMzLjUiTiA3MsKwNTInMzkuNiJF!5e0!3m2!1sen!2sin!4v1234567890123!5m2!1sen!2sin"
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    allowFullScreen=""
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title="Library Location"
-                  ></iframe>
-                </div>
-                <p className="text-sm text-gray-600 text-center font-medium">
-                  📌 123 Education Street, Learning City
-                </p>
-              </div>
-            </div>
-
             {/* Help & Support Card */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border border-blue-100">
               <h3 className="font-semibold text-gray-900 mb-5 flex items-center gap-2">
@@ -598,6 +540,32 @@ export default function Dashboard() {
                   💬 Chat Now
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* TERTIARY ZONE - Location */}
+          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100">
+            <h3 className="font-semibold text-gray-900 p-6 pb-4 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-red-600" strokeWidth={2} />
+              <span>Location</span>
+            </h3>
+            
+            <div className="px-6 pb-6">
+              <div className="w-full aspect-video md:aspect-[21/9] rounded-lg overflow-hidden mb-4 border border-gray-200 bg-gray-100">
+                <iframe
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3769.1234567890!2d72.8776559!3d19.0759837!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTnCsDA0JzMzLjUiTiA3MsKwNTInMzkuNiJF!5e0!3m2!1sen!2sin!4v1234567890123!5m2!1sen!2sin"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Library Location"
+                ></iframe>
+              </div>
+              <p className="text-sm text-gray-600 text-center font-medium">
+                📌 123 Education Street, Learning City
+              </p>
             </div>
           </div>
 

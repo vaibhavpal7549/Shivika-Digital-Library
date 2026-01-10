@@ -130,6 +130,16 @@ exports.createOrder = async (req, res) => {
       }
     });
 
+    console.log('🔵 Payment data to save:', JSON.stringify({
+      userId: payment.userId,
+      firebaseUid: payment.firebaseUid,
+      type: payment.type,
+      amount: payment.amount,
+      paymentMode: payment.paymentMode,
+      monthsPaidFor: payment.monthsPaidFor,
+      seatNumber: payment.seatNumber
+    }, null, 2));
+
     console.log('🔵 Saving Payment record...');
     try {
       await payment.save();
@@ -211,36 +221,27 @@ exports.verifyPayment = async (req, res) => {
       });
     }
 
-    // Validate seatNumber if provided
-    if (seatNumber && !Number.isInteger(parseInt(seatNumber))) {
-      console.error('❌ Invalid seat number:', seatNumber);
-      return res.status(400).json({ 
-        success: false, 
-        error: 'seatNumber must be a valid integer' 
-      });
-    }
-
     // Validate amount if provided
     if (amount !== undefined && (typeof amount !== 'number' || amount <= 0)) {
-      console.error('❌ Invalid amount:', amount);
+      console.error('❌ Invalid amount:', amount, 'Type:', typeof amount);
       return res.status(400).json({ 
         success: false, 
         error: 'amount must be a positive number' 
       });
     }
 
-    // Validate months
-    if (months !== undefined && (!Number.isInteger(months) || months < 1 || months > 12)) {
-      console.error('❌ Invalid months:', months);
+    // Validate months - must be positive integer
+    if (months !== undefined && (!Number.isInteger(months) || months < 1)) {
+      console.error('❌ Invalid months:', months, 'Type:', typeof months);
       return res.status(400).json({ 
         success: false, 
-        error: 'months must be an integer between 1 and 12' 
+        error: 'months must be a positive integer' 
       });
     }
 
     // Validate firebaseUid
     if (!firebaseUid && !userId) {
-      console.error('❌ Missing user identifier');
+      console.error('❌ Missing user identifier. firebaseUid:', firebaseUid, 'userId:', userId);
       return res.status(400).json({ 
         success: false, 
         error: 'firebaseUid or userId is required' 
@@ -327,7 +328,7 @@ exports.verifyPayment = async (req, res) => {
           orderId: razorpay_order_id,
           amount: payment.amount,
           date: new Date(),
-          paymentMode: 'online',
+          paymentMode: 'Online',
           status: 'success',
           type: payment.type,
           monthsPaid: paymentMonths,
@@ -537,10 +538,18 @@ exports.verifyPayment = async (req, res) => {
       
       // ===== STEP 8: SAVE PAYMENT (ONCE) =====
       console.log('💾 Saving payment record...');
+      
+      // Ensure shift is set on payment
+      if (shift && !payment.shift) {
+        payment.shift = shift;
+      }
+      
       console.log('Payment data:', {
         orderId: payment.orderId,
         paymentId: payment.paymentId,
         status: payment.status,
+        verificationStatus: payment.verificationStatus,
+        shift: payment.shift,
         seatNumber: payment.seatNumber
       });
       
@@ -553,6 +562,11 @@ exports.verifyPayment = async (req, res) => {
           console.log('🔄 Syncing seat to Firebase...');
           await syncSeatToFirebase(bookedSeat);
           console.log('✅ Firebase sync complete');
+          
+          // Update payment firebaseSynced flag
+          payment.firebaseSynced = true;
+          await payment.save();
+          console.log('✅ Payment firebaseSynced flag updated');
         } catch (firebaseError) {
           // Firebase sync failure is non-critical
           console.error('⚠️ Firebase sync failed (non-critical):', firebaseError.message);
@@ -592,10 +606,11 @@ exports.verifyPayment = async (req, res) => {
       }
       
       if (dbError.name === 'ValidationError') {
+        const validationMessages = Object.values(dbError.errors).map(err => err.message).join(', ');
         return res.status(400).json({
           success: false,
-          error: 'Invalid data format',
-          details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+          error: `Validation Error: ${validationMessages}`,
+          details: dbError.message
         });
       }
       

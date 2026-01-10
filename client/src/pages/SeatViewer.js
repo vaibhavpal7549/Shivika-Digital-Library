@@ -187,7 +187,11 @@ export default function SeatViewer() {
                     <h3 className="text-lg sm:text-xl font-bold text-green-800">Your Booked Seat</h3>
                   </div>
                   <p className="text-green-700 text-sm sm:text-base mt-1">
-                    <span className="font-semibold">Seat {bookedSeat.seatNumber}</span> • {bookedSeat.months} month(s)
+                    <span className="font-semibold">Seat {bookedSeat.seatNumber}</span> • {
+                      (bookedSeat.months || bookedSeat.monthsPaidFor || 1) === 1 
+                        ? '1 Month' 
+                        : `${bookedSeat.months || bookedSeat.monthsPaidFor || 1} Months`
+                    }
                     {bookedSeat.dailyHours && ` • ${bookedSeat.dailyHours} hrs/day`}
                   </p>
                   <p className="text-green-600 text-xs sm:text-sm mt-1">
@@ -210,7 +214,7 @@ export default function SeatViewer() {
                 <span className="flex-shrink-0">ℹ️</span>
                 <span>
                   <strong>One seat per user:</strong> You can only have one seat booked at a time. 
-                  To change seats, click on a vacant (red) seat and follow the "Change Seat" flow.
+                  To change seats, click on a vacant (green) seat and follow the "Change Seat" flow.
                 </span>
               </p>
             </div>

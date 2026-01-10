@@ -362,9 +362,18 @@ export default function Booking() {
 
             toast.success(
               changeSeatInProgress 
-                ? `Seat changed to ${seatNumber} successfully!`
-                : `Seat ${seatNumber} booked successfully!`,
-              { duration: 5000 }
+                ? `🎉 Seat changed to ${seatNumber} successfully!`
+                : `🎉 Payment Successful! Seat ${seatNumber} booked successfully!`,
+              { 
+                duration: 5000,
+                style: {
+                  background: '#10B981',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  padding: '16px',
+                }
+              }
             );
 
             setTimeout(() => {

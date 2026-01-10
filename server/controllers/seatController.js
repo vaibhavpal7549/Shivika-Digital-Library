@@ -94,7 +94,7 @@ exports.getSeat = async (req, res) => {
       });
     }
 
-    const seat = await Seat.getByNumber(seatNumber);
+    const seat = await Seat.findOne({ seatNumber });
 
     if (!seat) {
       return res.status(404).json({
@@ -110,6 +110,7 @@ exports.getSeat = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Get seat error:', error);
+    console.error('Error details:', error.message);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch seat'

@@ -394,7 +394,8 @@ exports.verifyPayment = async (req, res) => {
                   expiryDate: new Date(user.seat.expiryDate.getTime() + (paymentMonths * 30 * 24 * 60 * 60 * 1000)),
                   status: 'booked',
                   displayStatus: 'red',
-                  dailyHours: dailyHours || user.seat.dailyHours // Update dailyHours if provided, else keep existing
+                  dailyHours: dailyHours || user.seat.dailyHours, // Update dailyHours if provided, else keep existing
+                  months: paymentMonths // Update duration for extension
                 }
               },
               { new: true }
@@ -410,7 +411,8 @@ exports.verifyPayment = async (req, res) => {
 
             // Update user.seat expiry
             user.seat.expiryDate = bookedSeat.expiryDate;
-            user.seat.dailyHours = bookedSeat.dailyHours; // Update user.seat dailyHours
+            user.seat.dailyHours = bookedSeat.dailyHours;
+            user.seat.months = bookedSeat.months; // Update user.seat months
             seatBooked = true;
             seatInfo = user.seat;
             
@@ -442,7 +444,8 @@ exports.verifyPayment = async (req, res) => {
                   shift,
                   status: 'booked',
                   displayStatus: 'red',
-                  dailyHours: dailyHours // Set dailyHours for new booking
+                  dailyHours: dailyHours, // Set dailyHours for new booking
+                  months: paymentMonths // Set duration for new booking
                 },
                 $push: {
                   bookingHistory: {
@@ -485,6 +488,41 @@ exports.verifyPayment = async (req, res) => {
               });
             }
 
+            // Start Seat Change Logic: Release old seat if this is a seat change
+            if (user.seat && user.seat.seatNumber && user.seat.seatNumber !== parseInt(targetSeatNumber)) {
+              console.log(`🔄 Seat Change Detected: Releasing old seat ${user.seat.seatNumber} for user ${user.fullName}`);
+              
+              const oldSeatNumber = user.seat.seatNumber;
+              try {
+                const releasedSeat = await Seat.findOneAndUpdate(
+                  { seatNumber: oldSeatNumber, bookedByFirebaseUid: user.firebaseUid },
+                  { 
+                    $set: { 
+                      isBooked: false, 
+                      bookedBy: null, 
+                      bookedByFirebaseUid: null, 
+                      bookingDate: null,
+                      expiryDate: null,
+                      shift: null,
+                      status: 'available',
+                      displayStatus: 'green',
+                      dailyHours: null
+                    }
+                  },
+                  { new: true }
+                );
+                
+                if (releasedSeat) {
+                  console.log(`✅ Old seat ${oldSeatNumber} released successfully`);
+                  // Sync released seat to Firebase
+                  await syncSeatToFirebase(releasedSeat);
+                }
+              } catch (releaseError) {
+                console.error(`⚠️ Failed to release old seat ${oldSeatNumber}:`, releaseError);
+              }
+            }
+            // End Seat Change Logic
+
             // Update user.seat
             user.seat = {
               seatNumber: parseInt(targetSeatNumber),
@@ -493,7 +531,8 @@ exports.verifyPayment = async (req, res) => {
               shift,
               bookingDate,
               expiryDate,
-              dailyHours // Set dailyHours in user.seat
+              dailyHours, // Set dailyHours in user.seat
+              months: paymentMonths // Set duration in user.seat
             };
             
             seatBooked = true;
@@ -510,6 +549,7 @@ exports.verifyPayment = async (req, res) => {
 
           // Update payment record
           payment.seatNumber = parseInt(targetSeatNumber);
+          payment.seatId = bookedSeat._id; // Link payment to seat
           payment.seatBookedSuccessfully = true;
           payment.dailyHours = dailyHours; // Ensure dailyHours is saved to payment record
           
@@ -573,13 +613,20 @@ exports.verifyPayment = async (req, res) => {
       if (bookedSeat && seatBooked) {
         try {
           console.log('🔄 Syncing seat to Firebase...');
-          await syncSeatToFirebase(bookedSeat);
-          console.log('✅ Firebase sync complete');
           
-          // Update payment firebaseSynced flag
-          payment.firebaseSynced = true;
-          await payment.save();
-          console.log('✅ Payment firebaseSynced flag updated');
+          // Inject user name for sync (since bookedBy is just ID)
+          bookedSeat.bookedBy = { fullName: user.fullName };
+          
+          const syncSuccess = await syncSeatToFirebase(bookedSeat);
+          
+          if (syncSuccess) {
+            console.log('✅ Firebase sync complete');
+            payment.firebaseSynced = true;
+            await payment.save();
+            console.log('✅ Payment firebaseSynced flag updated');
+          } else {
+            console.warn('⚠️ Firebase sync returned false');
+          }
         } catch (firebaseError) {
           // Firebase sync failure is non-critical
           console.error('⚠️ Firebase sync failed (non-critical):', firebaseError.message);

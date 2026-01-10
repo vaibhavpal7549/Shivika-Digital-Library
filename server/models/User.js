@@ -77,6 +77,10 @@ const SeatDetailsSchema = new mongoose.Schema({
   dailyHours: {
     type: Number,
     default: null
+  },
+  months: {
+    type: Number,
+    default: 1
   }
 }, { _id: false });
 

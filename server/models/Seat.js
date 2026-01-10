@@ -64,6 +64,11 @@ const SeatSchema = new mongoose.Schema({
     index: true
   },
 
+  months: {
+    type: Number,
+    default: 1
+  },
+
   shift: {
     type: String,
     enum: ['morning', 'evening', 'fullday', 'custom', null],

@@ -188,23 +188,20 @@ export default function SeatViewer() {
                   </div>
                   <p className="text-green-700 text-sm sm:text-base mt-1">
                     <span className="font-semibold">Seat {bookedSeat.seatNumber}</span> • {
-                      (bookedSeat.months || bookedSeat.monthsPaidFor || 1) === 1 
-                        ? '1 Month' 
-                        : `${bookedSeat.months || bookedSeat.monthsPaidFor || 1} Months`
+                      (() => {
+                        const duration = parseInt(bookedSeat.months || bookedSeat.monthsPaidFor || 1);
+                        return duration === 1 ? '1 Month' : `${duration} Months`;
+                      })()
                     }
                     {bookedSeat.dailyHours && ` • ${bookedSeat.dailyHours} hrs/day`}
                   </p>
                   <p className="text-green-600 text-xs sm:text-sm mt-1">
                     Booked on: {
                       (() => {
-                        const dateValue = bookedSeat.bookedAt || bookedSeat.createdAt || bookedSeat.paidAt;
+                        const dateValue = bookedSeat.bookingDate || bookedSeat.bookedAt || bookedSeat.createdAt;
                         if (!dateValue) return 'N/A';
-                        const date = new Date(dateValue);
-                        return isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric'
-                        });
+                        // Extract YYYY-MM-DD from ISO string
+                        return new Date(dateValue).toISOString().split('T')[0];
                       })()
                     }
                   </p>

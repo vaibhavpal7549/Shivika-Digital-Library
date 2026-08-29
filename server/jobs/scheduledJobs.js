@@ -83,13 +83,7 @@ const autoReleaseExpiredSeats = async () => {
         // Update user if found
         if (user) {
           await user.releaseSeat();
-          user.sheetsSync.syncStatus = 'pending';
           await user.save();
-
-          // Sync to Google Sheets
-          // googleSheetsService.syncUser(user).catch(err => {
-          //   console.error('⚠️  Sheets sync error:', err.message);
-          // });
         }
 
         console.log(`✅ Auto-released seat ${seat.seatNumber} (expired)`);
@@ -136,13 +130,7 @@ const markOverduePayments = async () => {
     for (const user of overdueUsers) {
       try {
         user.payment.paymentStatus = 'overdue';
-        user.sheetsSync.syncStatus = 'pending';
         await user.save();
-
-        // Sync to Google Sheets
-        // googleSheetsService.syncUser(user).catch(err => {
-        //   console.error('⚠️  Sheets sync error:', err.message);
-        // });
 
         console.log(`⚠️  Marked ${user.fullName} as overdue`);
 
@@ -169,40 +157,10 @@ const markOverduePayments = async () => {
 };
 
 /**
- * Sync pending users to Google Sheets
- * Runs every 15 minutes to catch any failed syncs
+ * Sync pending users to Google Sheets (Placeholder / No-op)
  */
 const syncPendingToSheets = async () => {
-  try {
-    // Find users with pending sync
-    const pendingUsers = await User.findPendingSync();
-
-    console.log(`📋 Found ${pendingUsers.length} users pending sync`);
-
-    if (pendingUsers.length === 0) return 0;
-
-    // Batch sync
-    // await googleSheetsService.batchSyncUsers(pendingUsers);
-
-    // Mark as synced
-    await User.updateMany(
-      { _id: { $in: pendingUsers.map(u => u._id) } },
-      { 
-        $set: { 
-          'sheetsSync.syncStatus': 'synced',
-          'sheetsSync.lastSyncAt': new Date()
-        } 
-      }
-    );
-
-    console.log(`✅ Synced ${pendingUsers.length} users to Google Sheets`);
-
-    return pendingUsers.length;
-
-  } catch (error) {
-    console.error('❌ Sheets sync job failed:', error);
-    return 0;
-  }
+  return 0;
 };
 
 /**

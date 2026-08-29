@@ -297,17 +297,21 @@ export default function Signup() {
 
     setIsLoading(true);
     try {
-      // Register in MongoDB with Firebase UID
-      // Use context function to ensure state is updated
+      const activeUid = googleUserData?.uid || currentUser?.uid;
+      const activeEmail = googleUserData?.email || email;
+      const activePhoto = googleUserData?.photoURL || null;
+
       await registerUser({
-        name,
-        email: googleUserData.email || email,
-        phone,
-        profilePicture: googleUserData.photoURL || null
-      }, { uid: googleUserData.uid || currentUser?.uid });
+        name: name.trim(),
+        email: activeEmail.toLowerCase().trim(),
+        phone: phone.trim(),
+        profilePicture: activePhoto
+      }, { uid: activeUid });
 
       await refreshUserData();
-      await refreshProfile(googleUserData.uid || currentUser?.uid); // Sync profile context with explicit UID
+      if (activeUid) {
+        await refreshProfile(activeUid);
+      }
 
       toast.success('Profile completed successfully!');
       navigate('/dashboard');

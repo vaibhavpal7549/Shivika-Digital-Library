@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useUser } from '../contexts/UserContext';
+import { useProfile } from '../contexts/ProfileContext';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { 
@@ -20,34 +22,18 @@ import {
 // Get API URL from environment or default
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-/**
- * Enhanced Login Component
- * 
- * UX Improvements Made:
- * 1. Clear visual hierarchy - Google Sign-in is now prominently displayed as the primary option
- * 2. Floating labels with smooth animations for better form UX
- * 3. Password visibility toggle for better usability
- * 4. Enhanced loading states with spinner animations
- * 5. Improved trust signals with icons
- * 6. Better mobile touch targets (minimum 44px)
- * 7. Consistent icon library (Lucide) for professional look
- * 8. Smooth micro-interactions on all interactive elements
- * 9. Form validation feedback with visual indicators
- * 10. Keyboard-friendly layout with proper tab order
- */
 export default function Login() {
-  // ============================================
-  // STATE MANAGEMENT - No changes to auth logic
-  // ============================================
-  const [activeTab, setActiveTab] = useState('google'); // Changed default to Google for better UX
+  const [activeTab, setActiveTab] = useState('google');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
 
-  // Get session-related state from AuthContext
+  // Get auth and context hooks
   const { login, signInWithGoogle, sessionBlocked, blockReason } = useAuth();
+  const { fetchUserData } = useUser();
+  const { refreshProfile } = useProfile();
   const navigate = useNavigate();
 
   /**
@@ -65,16 +51,8 @@ export default function Login() {
     }
   };
 
-  // ============================================
-  // EVENT HANDLERS - Original logic preserved
-  // ============================================
-  
   /**
    * Handle Email/Password Authentication
-   * 
-   * NOTE: Toast notifications are handled in AuthContext.js
-   * to prevent duplicate notifications and maintain single
-   * source of truth for auth feedback.
    */
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
@@ -84,7 +62,6 @@ export default function Login() {
       const result = await login(email, password);
       console.log('Login successful:', result?.user?.uid);
       
-      // Check if user is registered in MongoDB
       if (result && result.user) {
         console.log('Checking MongoDB registration...');
         const isRegistered = await checkUserRegistration(result.user.uid);
@@ -106,21 +83,22 @@ export default function Login() {
           });
           return;
         }
+
+        // Sync MongoDB user & profile state before navigating
+        await fetchUserData(result.user.uid);
+        await refreshProfile(result.user.uid);
       }
       
       toast.success('Logged in successfully!');
       navigate('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
-      // Error toast is already shown by AuthContext login function
       setIsLoading(false);
     }
   };
 
   /**
    * Handle Google Sign-In
-   * 
-   * NOTE: Checks MongoDB registration and redirects to signup if needed.
    */
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
@@ -128,7 +106,6 @@ export default function Login() {
       console.log('🔵 Login.js: Initiating Google Sign-In...');
       const result = await signInWithGoogle();
       
-      // Check if user is registered in MongoDB and sync Google profile data
       if (result && result.user) {
         console.log('✅ Login.js: Google Auth successful, checking MongoDB...');
         try {
@@ -141,13 +118,17 @@ export default function Login() {
           });
           
           console.log('✅ Login.js: Backend login successful');
+          
+          // Preload user & profile in context
+          await fetchUserData(result.user.uid);
+          await refreshProfile(result.user.uid);
+
           toast.success('Logged in with Google!');
           navigate('/dashboard');
         } catch (error) {
           console.error('❌ Login.js: Backend login error:', error);
           if (error.response?.status === 404) {
             console.log('ℹ️ Login.js: User needs registration, redirecting...');
-            // User not found in MongoDB, redirect to signup to complete profile
             navigate('/signup', {
               state: {
                 needsProfileCompletion: true,

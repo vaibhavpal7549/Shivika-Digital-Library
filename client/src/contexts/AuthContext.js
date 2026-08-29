@@ -81,7 +81,14 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [sessionId, setSessionId] = useState(null);
+  // Initialize sessionId from sessionStorage if present
+  const [sessionId, setSessionId] = useState(() => {
+    try {
+      return sessionStorage.getItem('auth_session_id') || null;
+    } catch {
+      return null;
+    }
+  });
   const [sessionValid, setSessionValid] = useState(true);
   const [activeSessionInfo, setActiveSessionInfo] = useState(null);
   const [sessionBlocked, setSessionBlocked] = useState(false);
@@ -91,7 +98,7 @@ export function AuthProvider({ children }) {
   const heartbeatIntervalRef = useRef(null);
   const sessionCheckIntervalRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
-  const currentSessionIdRef = useRef(null);
+  const currentSessionIdRef = useRef(sessionId);
 
   // ============================================
   // SESSION MANAGEMENT FUNCTIONS
@@ -111,29 +118,30 @@ export function AuthProvider({ children }) {
       deviceInfo,
       isActive: true,
     };
+
+    setSessionId(newSessionId);
+    currentSessionIdRef.current = newSessionId;
+    setActiveSessionInfo(sessionData);
+    setSessionValid(true);
+    setSessionBlocked(false);
+    setBlockReason(null);
+
+    try {
+      sessionStorage.setItem('auth_session_id', newSessionId);
+    } catch (e) {
+      console.warn('Could not save session to sessionStorage:', e);
+    }
     
     try {
-      // Use transaction to ensure atomic session creation
+      // Use set / transaction to record session in RTDB
       const sessionRef = ref(database, `sessions/${userId}`);
-      
-      await runTransaction(sessionRef, (currentSession) => {
-        // Always replace with new session (single-session enforcement)
-        return sessionData;
-      });
-      
-      setSessionId(newSessionId);
-      currentSessionIdRef.current = newSessionId;
-      setActiveSessionInfo(sessionData);
-      setSessionValid(true);
-      setSessionBlocked(false);
-      setBlockReason(null);
-      
-      console.log('✅ Session created:', newSessionId.slice(-8));
-      return newSessionId;
+      await set(sessionRef, sessionData);
+      console.log('✅ Session created in RTDB:', newSessionId.slice(-8));
     } catch (error) {
-      console.error('❌ Failed to create session:', error);
-      throw error;
+      console.warn('⚠️ RTDB session sync failed (non-fatal):', error.message);
     }
+
+    return newSessionId;
   }, []);
 
   /**
@@ -385,9 +393,14 @@ export function AuthProvider({ children }) {
   async function signup(email, password) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      setCurrentUser(userCredential.user);
       
       // Create session for new user
-      await createSession(userCredential.user.uid);
+      try {
+        await createSession(userCredential.user.uid);
+      } catch (sessionError) {
+        console.warn('⚠️ Non-fatal session error on signup:', sessionError);
+      }
       
       // Return userCredential for MongoDB registration
       return userCredential;
@@ -409,9 +422,14 @@ export function AuthProvider({ children }) {
       setBlockReason(null);
       
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      setCurrentUser(userCredential.user);
       
       // Create new session (this invalidates any existing session - single session enforcement)
-      await createSession(userCredential.user.uid);
+      try {
+        await createSession(userCredential.user.uid);
+      } catch (sessionError) {
+        console.warn('⚠️ Non-fatal session error on login:', sessionError);
+      }
       
       // Return userCredential for MongoDB registration check
       return userCredential;
@@ -442,6 +460,7 @@ export function AuthProvider({ children }) {
       console.log('🔵 Opening popup...');
       const userCredential = await signInWithPopup(auth, provider);
       console.log('✅ Google Auth successful:', userCredential.user.uid);
+      setCurrentUser(userCredential.user);
       
       // Create new session (this invalidates any existing session - single session enforcement)
       try {
@@ -449,11 +468,7 @@ export function AuthProvider({ children }) {
         await createSession(userCredential.user.uid);
         console.log('✅ Session created successfully');
       } catch (sessionError) {
-        console.error('❌ Session creation failed:', sessionError);
-        // We still allow login even if session creation fails, but log it
-        // Or should we fail? The app relies on session.
-        // Let's throw for now to maintain security, but log specific error
-        throw new Error(`Session creation failed: ${sessionError.message}`);
+        console.warn('⚠️ Non-fatal session error on Google sign-in:', sessionError);
       }
       
       // Return userCredential for MongoDB registration check

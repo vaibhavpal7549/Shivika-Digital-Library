@@ -55,21 +55,31 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Admin Route Component - Strictly requires admin role on server-synced user object
+// Admin Route Component - Requires admin role or Admin Demo mode
 const AdminRoute = ({ children }) => {
-  const { isDemo } = useAuth();
+  const { isDemo, currentUser } = useAuth();
   const { userData, loading } = useUser();
 
-  if (loading) {
+  const isDemoAdmin =
+    isDemo &&
+    (sessionStorage.getItem("demo_role") === "admin" ||
+      currentUser?.isAdminDemo ||
+      currentUser?.uid === "demo-admin-uid");
+
+  if (loading && !isDemoAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl font-medium text-gray-600">Verifying Admin Access...</div>
+        <div className="text-xl font-medium text-gray-600">
+          Verifying Admin Access...
+        </div>
       </div>
     );
   }
 
-  if (userData?.role !== 'admin') {
-    toast.error('🔒 Access Restricted: Admin permissions required.');
+  const isAdmin = userData?.role === "admin" || isDemoAdmin;
+
+  if (!isAdmin) {
+    toast.error("🔒 Access Restricted: Admin permissions required.");
     return <Navigate to="/dashboard" replace />;
   }
 

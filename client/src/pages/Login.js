@@ -36,21 +36,9 @@ export default function Login() {
     navigate("/dashboard");
   };
 
-  const handleAdminDemoClick = async () => {
-    setIsLoading(true);
-    try {
-      const result = await login("admin@shivikalibrary.com", "AdminSecure123!");
-      await fetchUserData(result.user.uid);
-      await refreshProfile(result.user.uid);
-      toast.success("Welcome to Admin Dashboard!");
-      navigate("/admin");
-    } catch (err) {
-      console.warn("Using Admin Demo Mode:", err.message);
-      enterAdminDemoMode();
-      navigate("/admin");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleAdminDemoClick = () => {
+    enterAdminDemoMode();
+    navigate("/admin");
   };
 
   /**

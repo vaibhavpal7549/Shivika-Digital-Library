@@ -12,9 +12,15 @@ import StudentDetailModal from "../components/admin/StudentDetailModal";
 
 const AdminPanel = () => {
   const navigate = useNavigate();
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, isDemo } = useAuth();
   const { userData, loading: userLoading } = useUser();
   const { socket, connected, joinAdminRoom, leaveAdminRoom } = useSocket();
+
+  const isDemoAdminMode =
+    isDemo ||
+    sessionStorage.getItem("is_demo_mode") === "true" ||
+    currentUser?.isAdminDemo ||
+    currentUser?.uid === "demo-admin-uid";
 
   // Active tab: "current" or "past"
   const [activeTab, setActiveTab] = useState("current");
@@ -58,12 +64,12 @@ const AdminPanel = () => {
 
   // Verify admin access
   useEffect(() => {
-    if (!userLoading && userData) {
+    if (!userLoading && userData && !isDemoAdminMode) {
       if (userData.role !== "admin") {
         navigate("/dashboard");
       }
     }
-  }, [userData, userLoading, navigate]);
+  }, [userData, userLoading, navigate, isDemoAdminMode]);
 
   // Debounce search
   useEffect(() => {
@@ -76,6 +82,30 @@ const AdminPanel = () => {
 
   // Fetch Enhanced Dashboard Stats
   const fetchStats = useCallback(async () => {
+    if (isDemoAdminMode) {
+      setStats({
+        totalCapacity: 100,
+        totalCurrentStudents: 42,
+        activeSeats: 38,
+        pendingVerification: 4,
+        vacantSeats: 58,
+        occupancyRate: "42%",
+        totalFeesCollected: 63000,
+        pendingFees: 6000,
+        overdueCount: 2,
+        upcomingExpiringCount: 5,
+        pastStudentsCount: 18,
+        shiftsBreakdown: {
+          morning: 18,
+          afternoon: 12,
+          evening: 8,
+          fullDay: 4,
+        },
+      });
+      setStatsLoading(false);
+      return;
+    }
+
     try {
       setStatsLoading(true);
       const res = await apiClient.get("/api/admin/enhanced-stats");
@@ -87,10 +117,168 @@ const AdminPanel = () => {
     } finally {
       setStatsLoading(false);
     }
-  }, []);
+  }, [isDemoAdminMode]);
 
   // Fetch Students (Current or Past)
   const fetchStudents = useCallback(async () => {
+    if (isDemoAdminMode) {
+      setLoading(true);
+      setError(null);
+      setTimeout(() => {
+        if (activeTab === "current") {
+          const mockCurrent = [
+            {
+              _id: "demo-stud-1",
+              seatNumber: 1,
+              fullName: "Rahul Verma",
+              phone: "9876543210",
+              email: "rahul.v@example.com",
+              shift: "morning",
+              membershipStatus: "Active",
+              bookingStatus: "Confirmed",
+              paymentStatus: "paid",
+              monthsPaidFor: 2,
+              amountPaid: 3000,
+              nextDueDate: new Date(Date.now() + 15 * 86400000).toISOString(),
+              studentId: "SDL-2026-001",
+              profile: {
+                collegeName: "Delhi University",
+                fatherName: "Suresh Verma",
+                address: { full: "Connaught Place, New Delhi" },
+              },
+            },
+            {
+              _id: "demo-stud-2",
+              seatNumber: 5,
+              fullName: "Priya Sharma",
+              phone: "9876543211",
+              email: "priya.s@example.com",
+              shift: "fullDay",
+              membershipStatus: "Active",
+              bookingStatus: "Confirmed",
+              paymentStatus: "paid",
+              monthsPaidFor: 1,
+              amountPaid: 2500,
+              nextDueDate: new Date(Date.now() + 20 * 86400000).toISOString(),
+              studentId: "SDL-2026-002",
+              profile: {
+                collegeName: "IIT Delhi",
+                fatherName: "Ramesh Sharma",
+                address: { full: "Hauz Khas, New Delhi" },
+              },
+            },
+            {
+              _id: "demo-stud-3",
+              seatNumber: 12,
+              fullName: "Amit Kumar",
+              phone: "9876543212",
+              email: "amit.k@example.com",
+              shift: "evening",
+              membershipStatus: "Active",
+              bookingStatus: "Pending Verification",
+              paymentStatus: "pending",
+              monthsPaidFor: 1,
+              amountPaid: 1500,
+              nextDueDate: new Date(Date.now() - 2 * 86400000).toISOString(),
+              studentId: "SDL-2026-003",
+              profile: {
+                collegeName: "JNU",
+                fatherName: "Mahesh Kumar",
+                address: { full: "Munirka, New Delhi" },
+              },
+            },
+            {
+              _id: "demo-stud-4",
+              seatNumber: 18,
+              fullName: "Sneha Patel",
+              phone: "9876543213",
+              email: "sneha.p@example.com",
+              shift: "afternoon",
+              membershipStatus: "Active",
+              bookingStatus: "Confirmed",
+              paymentStatus: "overdue",
+              monthsPaidFor: 1,
+              amountPaid: 1500,
+              nextDueDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+              studentId: "SDL-2026-004",
+              profile: {
+                collegeName: "DU South Campus",
+                fatherName: "Dinesh Patel",
+                address: { full: "Lajpat Nagar, New Delhi" },
+              },
+            },
+            {
+              _id: "demo-stud-5",
+              seatNumber: 25,
+              fullName: "Vikas Singh",
+              phone: "9876543214",
+              email: "vikas.s@example.com",
+              shift: "morning",
+              membershipStatus: "Active",
+              bookingStatus: "Confirmed",
+              paymentStatus: "paid",
+              monthsPaidFor: 3,
+              amountPaid: 4500,
+              nextDueDate: new Date(Date.now() + 45 * 86400000).toISOString(),
+              studentId: "SDL-2026-005",
+              profile: {
+                collegeName: "Jamia Millia Islamia",
+                fatherName: "Rajendra Singh",
+                address: { full: "Okhla, New Delhi" },
+              },
+            },
+          ];
+          setStudents(mockCurrent);
+          setTotalRecords(mockCurrent.length);
+          setTotalPages(1);
+        } else {
+          const mockPast = [
+            {
+              _id: "demo-past-1",
+              fullName: "Anjali Gupta",
+              phone: "9876543215",
+              email: "anjali.g@example.com",
+              seatNumber: 8,
+              shift: "morning",
+              membershipStatus: "Inactive",
+              bookingStatus: "Not Confirmed",
+              exitReason: "Course Completed",
+              exitDate: new Date(Date.now() - 30 * 86400000).toISOString(),
+              deactivatedAt: new Date(Date.now() - 30 * 86400000).toISOString(),
+              deactivatedBy: "Admin Administrator",
+              deactivationReason: "Course Completed & Cleared Exams",
+              membershipDurationDays: 90,
+              totalPaidLifetime: 4500,
+              studentId: "SDL-2025-089",
+            },
+            {
+              _id: "demo-past-2",
+              fullName: "Rohan Das",
+              phone: "9876543216",
+              email: "rohan.d@example.com",
+              seatNumber: 15,
+              shift: "evening",
+              membershipStatus: "Inactive",
+              bookingStatus: "Not Confirmed",
+              exitReason: "Relocated",
+              exitDate: new Date(Date.now() - 45 * 86400000).toISOString(),
+              deactivatedAt: new Date(Date.now() - 45 * 86400000).toISOString(),
+              deactivatedBy: "Admin Administrator",
+              deactivationReason: "Relocated to another city",
+              membershipDurationDays: 60,
+              totalPaidLifetime: 3000,
+              studentId: "SDL-2025-064",
+            },
+          ];
+          setStudents(mockPast);
+          setTotalRecords(mockPast.length);
+          setTotalPages(1);
+        }
+        setLoading(false);
+      }, 200);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -132,6 +320,7 @@ const AdminPanel = () => {
       setLoading(false);
     }
   }, [
+    isDemoAdminMode,
     activeTab,
     page,
     limit,

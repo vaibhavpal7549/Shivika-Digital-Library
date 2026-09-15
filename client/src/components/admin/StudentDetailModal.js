@@ -116,13 +116,20 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
 
           {/* Section 2: Seat & Membership Status */}
           {(() => {
-            const hasActiveSeat = Boolean(seat.seatNumber) && seat.seatStatus !== "released" && seat.seatStatus !== "expired";
-            const displayBookingStatus = hasActiveSeat 
-              ? (seat.bookingStatus === "pending_payment" ? "Pending Payment" : "Confirmed") 
-              : "Not Confirmed";
-            const displayMembershipStatus = (hasActiveSeat && student.membershipStatus !== "inactive" && student.membershipStatus !== "expired")
-              ? "Active"
-              : "Inactive";
+            const isPastStudent = 
+              student.membershipStatus === "inactive" || 
+              student.membershipStatus === "Inactive" || 
+              seat.seatStatus === "released" || 
+              seat.seatStatus === "expired" ||
+              Boolean(student.deactivatedAt);
+
+            const displayBookingStatus = isPastStudent
+              ? "Not Confirmed"
+              : (seat.bookingStatus === "pending_payment" ? "Pending Payment" : "Confirmed");
+
+            const displayMembershipStatus = isPastStudent
+              ? "Inactive"
+              : "Active";
 
             return (
               <div>
@@ -133,7 +140,7 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
                   <div>
                     <span className="text-xs text-gray-500 dark:text-gray-400 block">Seat Number</span>
                     <span className="font-bold text-lg text-purple-700 dark:text-purple-300">
-                      {seat.seatNumber ? `Seat ${seat.seatNumber}` : "No Seat Assigned"}
+                      {seat.seatNumber ? `Seat ${seat.seatNumber}` : (isPastStudent ? "No Seat Assigned" : "Assigned")}
                     </span>
                   </div>
                   <div>

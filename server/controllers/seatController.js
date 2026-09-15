@@ -158,6 +158,16 @@ exports.bookSeat = async (req, res) => {
       });
     }
 
+    // MANDATORY REQUIREMENT: Student role must have a profile photo uploaded before booking
+    const hasProfilePhoto = Boolean(user.photoURL || user.profile?.photoURL || user.profilePhoto);
+    if (!hasProfilePhoto && user.role !== "admin") {
+      return res.status(400).json({
+        success: false,
+        error: "📸 Profile photo is mandatory before booking a seat. Please upload your profile photo first.",
+        needsPhoto: true,
+      });
+    }
+
     // Check if user already has an active seat (ONE-SEAT-PER-USER)
     if (user.hasActiveSeat) {
       return res.status(400).json({

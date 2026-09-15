@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import toast from 'react-hot-toast';
@@ -209,6 +209,35 @@ export default function Profile() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="p-4 sm:p-6 md:p-8">
         <div className="max-w-5xl mx-auto space-y-6 page-enter">
+
+          {/* ============================================ */}
+          {/* PROFILE PHOTO MANDATORY ALERT BANNER */}
+          {/* ============================================ */}
+          {(!formData.profilePhoto || location.state?.highlightPhoto) && profile?.role !== 'admin' && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-sm animate-pulse flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-200 text-amber-800 rounded-xl flex items-center justify-center text-xl font-bold flex-shrink-0">
+                  📸
+                </div>
+                <div>
+                  <h3 className="font-bold text-amber-900 text-sm sm:text-base">
+                    Profile Photo Required for Seat Booking
+                  </h3>
+                  <p className="text-amber-700 text-xs sm:text-sm mt-0.5">
+                    Seat book karne se pehle profile photo upload karna mandatory hai. Kripya niche <strong>"Edit Profile"</strong> button par click karke photo upload karein.
+                  </p>
+                </div>
+              </div>
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap shadow transition active:scale-95"
+                >
+                  Upload Photo Now
+                </button>
+              )}
+            </div>
+          )}
 
           {/* ============================================ */}
           {/* PROFILE HEADER SECTION */}

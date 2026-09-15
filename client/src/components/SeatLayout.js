@@ -21,6 +21,7 @@ export default function SeatLayout({ seats }) {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { isProfileComplete, hasPendingDues, bookedSeat, hasBookedSeat } = useProfile();
+  const { userData } = useUser();
   const [userSeatNumber, setUserSeatNumber] = useState(null);
   const totalSeats = 60;
 
@@ -58,6 +59,21 @@ export default function SeatLayout({ seats }) {
     if (!isProfileComplete) {
       toast.error('Please complete your profile before booking a seat');
       navigate('/profile');
+      return;
+    }
+
+    // MANDATORY REQUIREMENT: Profile Photo check for Student Role
+    const hasPhoto = Boolean(
+      userData?.photoURL ||
+        userData?.profilePhoto ||
+        userData?.profile?.photoURL ||
+        currentUser?.photoURL
+    );
+    if (!hasPhoto && userData?.role !== 'admin') {
+      toast.error('📸 Profile photo is mandatory to book a seat. Please upload your profile photo first.', {
+        duration: 5000,
+      });
+      navigate('/profile', { state: { highlightPhoto: true } });
       return;
     }
     

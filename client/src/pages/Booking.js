@@ -220,6 +220,22 @@ export default function Booking() {
       return;
     }
 
+    // MANDATORY REQUIREMENT: Profile Photo check for Student Role
+    const hasPhoto = Boolean(
+      userData?.photoURL ||
+        userData?.profilePhoto ||
+        userData?.profile?.photoURL ||
+        currentUser?.photoURL,
+    );
+    if (!hasPhoto && userData?.role !== "admin") {
+      toast.error(
+        "📸 Profile photo is mandatory to book a seat. Please upload your profile photo first.",
+        { duration: 5000 },
+      );
+      navigate("/profile", { state: { highlightPhoto: true } });
+      return;
+    }
+
     // Check existing seat via backend (NOT cached data)
     try {
       const userSeatResponse = await apiClient.get(

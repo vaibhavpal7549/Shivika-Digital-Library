@@ -549,7 +549,15 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <button className="w-full mt-4 px-4 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-all duration-200 active:scale-95 hover:scale-105">
+                <button
+                  onClick={() =>
+                    toast.error("This feature is currently not available, Contact in office", {
+                      icon: "💬",
+                      duration: 4000,
+                    })
+                  }
+                  className="w-full mt-4 px-4 py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm transition-all duration-200 active:scale-95 hover:scale-105"
+                >
                   💬 Chat Now
                 </button>
               </div>

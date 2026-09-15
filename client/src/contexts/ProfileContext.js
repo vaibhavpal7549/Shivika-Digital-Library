@@ -18,7 +18,7 @@ export function useProfile() {
 }
 
 export function ProfileProvider({ children }) {
-  const { currentUser } = useAuth();
+  const { currentUser, isDemo } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -171,6 +171,9 @@ export function ProfileProvider({ children }) {
   }, [currentUser, fetchBookedSeat]);
 
   const getMissingFields = useCallback(() => {
+    // Admin role is completely exempt from student profile completion requirements
+    if (profile?.role === "admin") return [];
+
     const missing = [];
     const photo = profile?.profilePhoto || profile?.photoURL;
     if (!photo) missing.push({ key: "profilePhoto", label: "Profile Photo", icon: "📸" });
@@ -198,11 +201,25 @@ export function ProfileProvider({ children }) {
 
   const isProfileComplete = () => {
     if (!profile) return false;
+    if (profile.role === "admin") return true;
     return getMissingFields().length === 0;
   };
 
   const updateProfile = async (profileData) => {
-    if (!currentUser) throw new Error("User not authenticated");
+    if (!currentUser && !isDemo) throw new Error("User not authenticated");
+
+    // Demo Mode bypass
+    if (isDemo || currentUser?.isDemo) {
+      const photo = profileData.profilePhoto || profileData.photoURL || profile?.profilePhoto || profile?.photoURL;
+      setProfile((prev) => ({
+        ...prev,
+        ...profileData,
+        photoURL: photo,
+        profilePhoto: photo,
+        updatedAt: new Date().toISOString(),
+      }));
+      return true;
+    }
 
     try {
       // Update profile via backend (MongoDB is source of truth)
@@ -212,11 +229,20 @@ export function ProfileProvider({ children }) {
       );
 
       if (response.data?.success && response.data.user) {
-        // Update local cache for immediate UI feedback
+        const userData = response.data.user;
         setProfile({
-          ...profile,
-          ...profileData,
-          userId: currentUser.uid,
+          fullName: userData.fullName,
+          email: userData.email,
+          phoneNumber: userData.phone,
+          photoURL: userData.photoURL,
+          profilePhoto: userData.photoURL,
+          fatherName: userData.profile?.fatherName,
+          dateOfBirth: userData.profile?.dateOfBirth,
+          fullAddress: userData.profile?.address?.full,
+          gender: userData.profile?.gender,
+          profile: userData.profile,
+          role: userData.role,
+          isActive: userData.isActive,
           updatedAt: new Date().toISOString(),
         });
         return true;

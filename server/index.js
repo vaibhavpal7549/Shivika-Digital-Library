@@ -122,8 +122,9 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Parse JSON bodies
-app.use(express.json());
+// Parse JSON bodies (increased limit for base64 profile photos)
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Request logging (development)
 if (process.env.NODE_ENV !== "production") {

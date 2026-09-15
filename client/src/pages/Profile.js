@@ -193,8 +193,9 @@ export default function Profile() {
       setIsEditing(false);
       setPhoneError('');
     } catch (error) {
-      toast.error('Failed to update profile');
-      console.error(error);
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to update profile';
+      toast.error(errorMsg);
+      console.error('Profile update error:', error);
     } finally {
       setIsSaving(false);
     }

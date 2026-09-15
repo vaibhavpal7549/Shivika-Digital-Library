@@ -970,9 +970,16 @@ exports.getPastStudents = async (req, res) => {
       success: true,
       students: paginatedUsers.map((u) => {
         const obj = u.toObject({ virtuals: true });
+        const hasSeat = Boolean(u.seat?.seatNumber);
         return {
           ...obj,
           id: u._id,
+          membershipStatus: hasSeat ? (u.membershipStatus || "active") : "inactive",
+          seat: {
+            ...(u.seat || {}),
+            bookingStatus: hasSeat && u.seat?.bookingStatus === "confirmed" ? "confirmed" : "not_confirmed",
+            seatStatus: hasSeat ? u.seat?.seatStatus : "released"
+          },
           monthsPaid: u.monthsPaid,
           paidThroughDate: u.paidThroughDate,
         };

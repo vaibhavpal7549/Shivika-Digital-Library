@@ -68,7 +68,7 @@ const AdminRoute = ({ children }) => {
     );
   }
 
-  if (isDemo || userData?.role !== 'admin') {
+  if (userData?.role !== 'admin') {
     toast.error('🔒 Access Restricted: Admin permissions required.');
     return <Navigate to="/dashboard" replace />;
   }

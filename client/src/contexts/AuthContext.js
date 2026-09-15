@@ -525,12 +525,13 @@ export function AuthProvider({ children }) {
   }
 
   /**
-   * Enter Demo Mode
+   * Enter Demo Mode (Student)
    */
   const enterDemoMode = useCallback(() => {
     setIsDemo(true);
     try {
       sessionStorage.setItem('is_demo_mode', 'true');
+      sessionStorage.setItem('demo_role', 'student');
     } catch (e) {
       console.warn('Could not save demo state to sessionStorage:', e);
     }
@@ -541,7 +542,29 @@ export function AuthProvider({ children }) {
       photoURL: null,
       isDemo: true,
     });
-    toast.success('Welcome to Demo Mode!');
+    toast.success('Welcome to Student Demo Mode!');
+  }, []);
+
+  /**
+   * Enter Admin Demo Mode
+   */
+  const enterAdminDemoMode = useCallback(() => {
+    setIsDemo(true);
+    try {
+      sessionStorage.setItem('is_demo_mode', 'true');
+      sessionStorage.setItem('demo_role', 'admin');
+    } catch (e) {
+      console.warn('Could not save demo state to sessionStorage:', e);
+    }
+    setCurrentUser({
+      uid: 'demo-admin-uid',
+      email: 'admin@shivikalibrary.com',
+      displayName: 'Admin Administrator',
+      photoURL: null,
+      isDemo: true,
+      isAdminDemo: true,
+    });
+    toast.success('👑 Welcome to Admin Demo Mode!');
   }, []);
 
   /**
@@ -551,6 +574,7 @@ export function AuthProvider({ children }) {
     setIsDemo(false);
     try {
       sessionStorage.removeItem('is_demo_mode');
+      sessionStorage.removeItem('demo_role');
     } catch (e) {
       console.warn('Could not remove demo state from sessionStorage:', e);
     }
@@ -577,6 +601,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     enterDemoMode,
+    enterAdminDemoMode,
     exitDemoMode,
     
     // Session management

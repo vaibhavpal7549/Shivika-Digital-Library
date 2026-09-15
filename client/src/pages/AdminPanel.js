@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { LogOut, RotateCw } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useUser } from "../contexts/UserContext";
 import { useSocket } from "../contexts/SocketContext";
@@ -276,15 +277,17 @@ const AdminPanel = () => {
                 fetchStats();
                 fetchStudents();
               }}
-              className="px-3 py-1.5 text-xs font-semibold bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition"
+              className="px-3.5 py-2 text-xs font-bold bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl transition duration-200 flex items-center space-x-2 shadow-sm border border-gray-200 dark:border-gray-600 active:scale-95 group"
             >
-              🔄 Refresh
+              <RotateCw className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 transition-transform duration-500 group-hover:rotate-180" />
+              <span>Refresh</span>
             </button>
             <button
               onClick={logout}
-              className="px-4 py-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow transition flex items-center space-x-1"
+              className="px-4 py-2 text-xs font-bold bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white rounded-xl shadow-md shadow-rose-500/20 hover:shadow-lg hover:shadow-rose-500/30 transition-all duration-200 flex items-center space-x-2 active:scale-95 border border-rose-400/30"
             >
-              <span>🚪 Log Out</span>
+              <LogOut className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+              <span>Log Out</span>
             </button>
           </div>
         </div>

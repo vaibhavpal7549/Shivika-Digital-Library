@@ -26,7 +26,7 @@ export default function Login() {
   const [focusedField, setFocusedField] = useState(null);
 
   // Get auth and context hooks
-  const { login, enterDemoMode, sessionBlocked, blockReason } = useAuth();
+  const { login, enterDemoMode, enterAdminDemoMode, sessionBlocked, blockReason } = useAuth();
   const { fetchUserData } = useUser();
   const { refreshProfile } = useProfile();
   const navigate = useNavigate();
@@ -34,6 +34,23 @@ export default function Login() {
   const handleDemoClick = () => {
     enterDemoMode();
     navigate("/dashboard");
+  };
+
+  const handleAdminDemoClick = async () => {
+    setIsLoading(true);
+    try {
+      const result = await login("admin@shivikalibrary.com", "AdminSecure123!");
+      await fetchUserData(result.user.uid);
+      await refreshProfile(result.user.uid);
+      toast.success("Welcome to Admin Dashboard!");
+      navigate("/admin");
+    } catch (err) {
+      console.warn("Using Admin Demo Mode:", err.message);
+      enterAdminDemoMode();
+      navigate("/admin");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   /**
@@ -340,18 +357,28 @@ export default function Login() {
                 </Link>
 
                 {/* Explore Demo Account CTA */}
-                <div className="pt-4 border-t border-gray-100 text-center">
-                  <p className="text-xs text-gray-500 font-medium mb-3">
-                    Want to explore the library features first?
+                <div className="pt-4 border-t border-gray-100 text-center space-y-3">
+                  <p className="text-xs text-gray-500 font-medium mb-1">
+                    Want to explore features before signing in?
                   </p>
-                  <button
-                    type="button"
-                    onClick={handleDemoClick}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98]"
-                  >
-                    <Zap className="w-4 h-4 text-amber-100 animate-pulse" />
-                    <span>Explore Demo Account</span>
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={handleDemoClick}
+                      className="w-full flex items-center justify-center gap-1.5 py-3 px-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98]"
+                    >
+                      <Zap className="w-4 h-4 text-amber-100 animate-pulse" />
+                      <span>Student Demo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAdminDemoClick}
+                      className="w-full flex items-center justify-center gap-1.5 py-3 px-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.98]"
+                    >
+                      <Shield className="w-4 h-4 text-purple-200" />
+                      <span>Explore Admin</span>
+                    </button>
+                  </div>
                 </div>
               </form>
 

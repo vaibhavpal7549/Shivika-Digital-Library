@@ -64,6 +64,25 @@ const DEMO_USER_DATA = {
   },
 };
 
+const DEMO_ADMIN_DATA = {
+  _id: "demo-admin-id",
+  firebaseUid: "demo-admin-uid",
+  fullName: "Admin Administrator",
+  email: "admin@shivikalibrary.com",
+  phone: "9999999999",
+  role: "admin",
+  hasActiveSeat: false,
+  seat: { seatNumber: null, seatStatus: null, bookingStatus: null },
+  payment: { paymentStatus: "paid", totalPaid: 0 },
+  paymentHistory: [],
+  profile: {
+    studentId: "SDL-ADMIN-001",
+    collegeName: "Shivika Library Administration",
+    fatherName: "System Administrator",
+    address: { full: "Library Admin HQ, Main Campus" },
+  },
+};
+
 const UserContext = createContext();
 
 export function useUser() {
@@ -83,9 +102,11 @@ export function UserProvider({ children }) {
    */
   const fetchUserData = useCallback(async (firebaseUid) => {
     if (isDemo) {
-      setUserData(DEMO_USER_DATA);
+      const isDemoAdmin = sessionStorage.getItem('demo_role') === 'admin';
+      const dataToSet = isDemoAdmin ? DEMO_ADMIN_DATA : DEMO_USER_DATA;
+      setUserData(dataToSet);
       setLoading(false);
-      return DEMO_USER_DATA;
+      return dataToSet;
     }
 
     if (!firebaseUid) {
@@ -369,7 +390,9 @@ export function UserProvider({ children }) {
   // Fetch user data when Firebase auth state changes or in Demo mode
   useEffect(() => {
     if (isDemo) {
-      setUserData(DEMO_USER_DATA);
+      const isDemoAdmin = sessionStorage.getItem('demo_role') === 'admin';
+      const dataToSet = isDemoAdmin ? DEMO_ADMIN_DATA : DEMO_USER_DATA;
+      setUserData(dataToSet);
       setNeedsRegistration(false);
       setLoading(false);
     } else if (!authLoading) {

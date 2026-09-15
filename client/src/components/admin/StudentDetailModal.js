@@ -115,59 +115,73 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
           </div>
 
           {/* Section 2: Seat & Membership Status */}
-          <div>
-            <h3 className="text-md font-bold text-purple-700 dark:text-purple-400 border-b pb-2 mb-3 flex items-center">
-              <span className="mr-2">🪑</span> Seat & Booking Details
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-purple-50 dark:bg-purple-950/30 p-4 rounded-xl border border-purple-100 dark:border-purple-900">
+          {(() => {
+            const hasActiveSeat = Boolean(seat.seatNumber) && seat.seatStatus !== "released" && seat.seatStatus !== "expired";
+            const displayBookingStatus = hasActiveSeat 
+              ? (seat.bookingStatus === "pending_payment" ? "Pending Payment" : "Confirmed") 
+              : "Not Confirmed";
+            const displayMembershipStatus = (hasActiveSeat && student.membershipStatus !== "inactive" && student.membershipStatus !== "expired")
+              ? "Active"
+              : "Inactive";
+
+            return (
               <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block">Seat Number</span>
-                <span className="font-bold text-lg text-purple-700 dark:text-purple-300">
-                  {seat.seatNumber ? `Seat ${seat.seatNumber}` : "No Seat Assigned"}
-                </span>
+                <h3 className="text-md font-bold text-purple-700 dark:text-purple-400 border-b pb-2 mb-3 flex items-center">
+                  <span className="mr-2">🪑</span> Seat & Booking Details
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-purple-50 dark:bg-purple-950/30 p-4 rounded-xl border border-purple-100 dark:border-purple-900">
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Seat Number</span>
+                    <span className="font-bold text-lg text-purple-700 dark:text-purple-300">
+                      {seat.seatNumber ? `Seat ${seat.seatNumber}` : "No Seat Assigned"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Shift</span>
+                    <span className="font-semibold capitalize">{seat.shift || "Full Day"}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Booking Date</span>
+                    <span className="font-semibold">{formatDate(seat.bookingDate)}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Payment Deadline</span>
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">
+                      {formatDate(seat.paymentDeadline)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Booking Status</span>
+                    <span className={`inline-block px-2.5 py-1 rounded text-xs font-bold uppercase ${
+                      displayBookingStatus === "Confirmed" ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" :
+                      displayBookingStatus === "Pending Payment" ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300" :
+                      "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+                    }`}>
+                      {displayBookingStatus}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Seat Expiry Date</span>
+                    <span className="font-semibold">{formatDate(seat.expiryDate)}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Membership Status</span>
+                    <span className={`inline-block px-2.5 py-1 rounded text-xs font-bold uppercase ${
+                      displayMembershipStatus === "Active"
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+                        : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                    }`}>
+                      {displayMembershipStatus}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Deactivated Date</span>
+                    <span className="font-semibold">{formatDate(student.deactivatedAt)}</span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block">Shift</span>
-                <span className="font-semibold capitalize">{seat.shift || "Full Day"}</span>
-              </div>
-              <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block">Booking Date</span>
-                <span className="font-semibold">{formatDate(seat.bookingDate)}</span>
-              </div>
-              <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block">Payment Deadline</span>
-                <span className="font-semibold text-amber-600 dark:text-amber-400">
-                  {formatDate(seat.paymentDeadline)}
-                </span>
-              </div>
-              <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block">Booking Status</span>
-                <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                  seat.bookingStatus === "confirmed" ? "bg-green-100 text-green-800" :
-                  seat.bookingStatus === "pending_payment" ? "bg-yellow-100 text-yellow-800" :
-                  "bg-red-100 text-red-800"
-                }`}>
-                  {seat.bookingStatus || "N/A"}
-                </span>
-              </div>
-              <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block">Seat Expiry Date</span>
-                <span className="font-semibold">{formatDate(seat.expiryDate)}</span>
-              </div>
-              <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block">Membership Status</span>
-                <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                  student.membershipStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                }`}>
-                  {student.membershipStatus || "active"}
-                </span>
-              </div>
-              <div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 block">Deactivated Date</span>
-                <span className="font-semibold">{formatDate(student.deactivatedAt)}</span>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Section 3: Fee Summary */}
           <div>

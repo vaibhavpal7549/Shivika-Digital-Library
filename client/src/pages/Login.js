@@ -200,114 +200,115 @@ export default function Login() {
 
             {/* ========================================
                 EMAIL/PASSWORD FORM
-                Enhanced with floating labels & validation
-                ======================================== */              <form
-                onSubmit={handleEmailSubmit}
-                className="space-y-4 animate-fadeIn"
-              >
-                {/* Email Input */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-700">
-                    Email Address
-                  </label>
-                  <div
-                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all duration-300 ${
+                Enhanced with clean inputs & validation
+                ======================================== */}
+            <form
+              onSubmit={handleEmailSubmit}
+              className="space-y-4 animate-fadeIn"
+            >
+              {/* Email Input */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-700">
+                  Email Address
+                </label>
+                <div
+                  className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all duration-300 ${
+                    focusedField === "email"
+                      ? "border-blue-500 bg-white shadow-lg shadow-blue-500/20"
+                      : email && isEmailValid
+                        ? "border-green-400 bg-green-50/30"
+                        : "border-gray-200 bg-gray-50/50 hover:border-blue-200 hover:bg-white"
+                  }`}
+                >
+                  <Mail
+                    className={`w-5 h-5 flex-shrink-0 transition-colors ${
                       focusedField === "email"
-                        ? "border-blue-500 bg-white shadow-lg shadow-blue-500/20"
-                        : email && isEmailValid
-                          ? "border-green-400 bg-green-50/30"
-                          : "border-gray-200 bg-gray-50/50 hover:border-blue-200 hover:bg-white"
+                        ? "text-blue-500"
+                        : "text-gray-400"
                     }`}
-                  >
-                    <Mail
-                      className={`w-5 h-5 flex-shrink-0 transition-colors ${
-                        focusedField === "email"
-                          ? "text-blue-500"
-                          : "text-gray-400"
-                      }`}
-                    />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onFocus={() => setFocusedField("email")}
-                      onBlur={() => setFocusedField(null)}
-                      required
-                      className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-400 text-sm sm:text-base font-medium w-full"
-                      placeholder="Enter your email"
-                      disabled={isLoading}
-                      aria-label="Email Address"
-                      autoComplete="email"
-                    />
-                    {email && (
-                      <div className="flex-shrink-0">
-                        {isEmailValid ? (
-                          <Check className="w-5 h-5 text-green-500" />
-                        ) : (
-                          <AlertCircle className="w-5 h-5 text-amber-500" />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Password Input */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-700">
-                    Password
-                  </label>
-                  <div
-                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all duration-300 ${
-                      focusedField === "password"
-                        ? "border-blue-500 bg-white shadow-lg shadow-blue-500/20"
-                        : password && isPasswordValid
-                          ? "border-green-400 bg-green-50/30"
-                          : "border-gray-200 bg-gray-50/50 hover:border-blue-200 hover:bg-white"
-                    }`}
-                  >
-                    <Lock
-                      className={`w-5 h-5 flex-shrink-0 transition-colors ${
-                        focusedField === "password"
-                          ? "text-blue-500"
-                          : "text-gray-400"
-                      }`}
-                    />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onFocus={() => setFocusedField("password")}
-                      onBlur={() => setFocusedField(null)}
-                      required
-                      minLength={6}
-                      className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-400 text-sm sm:text-base font-medium w-full"
-                      placeholder="Enter your password"
-                      disabled={isLoading}
-                      autoComplete="current-password"
-                      aria-label="Password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="text-gray-400 hover:text-gray-600 focus:outline-none p-1 flex-shrink-0"
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-5 h-5" />
+                  />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onFocus={() => setFocusedField("email")}
+                    onBlur={() => setFocusedField(null)}
+                    required
+                    className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-400 text-sm sm:text-base font-medium w-full"
+                    placeholder="Enter your email"
+                    disabled={isLoading}
+                    aria-label="Email Address"
+                    autoComplete="email"
+                  />
+                  {email && (
+                    <div className="flex-shrink-0">
+                      {isEmailValid ? (
+                        <Check className="w-5 h-5 text-green-500" />
                       ) : (
-                        <Eye className="w-5 h-5" />
+                        <AlertCircle className="w-5 h-5 text-amber-500" />
                       )}
-                    </button>
-                  </div>
-                  {password && password.length < 6 && (
-                    <p className="text-xs text-amber-600 flex items-center gap-1 pt-1">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      Password must be at least 6 characters
-                    </p>
+                    </div>
                   )}
-                </div> )}
+                </div>
+              </div>
+
+              {/* Password Input */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-gray-700">
+                  Password
+                </label>
+                <div
+                  className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all duration-300 ${
+                    focusedField === "password"
+                      ? "border-blue-500 bg-white shadow-lg shadow-blue-500/20"
+                      : password && isPasswordValid
+                        ? "border-green-400 bg-green-50/30"
+                        : "border-gray-200 bg-gray-50/50 hover:border-blue-200 hover:bg-white"
+                  }`}
+                >
+                  <Lock
+                    className={`w-5 h-5 flex-shrink-0 transition-colors ${
+                      focusedField === "password"
+                        ? "text-blue-500"
+                        : "text-gray-400"
+                    }`}
+                  />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setFocusedField("password")}
+                    onBlur={() => setFocusedField(null)}
+                    required
+                    minLength={6}
+                    className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-400 text-sm sm:text-base font-medium w-full"
+                    placeholder="Enter your password"
+                    disabled={isLoading}
+                    autoComplete="current-password"
+                    aria-label="Password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none p-1 flex-shrink-0"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+                {password && password.length < 6 && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1 pt-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Password must be at least 6 characters
+                  </p>
+                )}
+              </div>
 
                 {/* Submit Button - Primary CTA */}
                 <button

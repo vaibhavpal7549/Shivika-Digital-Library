@@ -427,6 +427,48 @@ const reconcileAllSeats = async (SeatModel) => {
   }
 };
 
+/**
+ * Completely delete user from Firebase Auth Console and Firebase Realtime Database
+ * @param {string} firebaseUid - Firebase User UID
+ */
+const deleteUserFromFirebase = async (firebaseUid) => {
+  if (!firebaseUid) return { success: false, error: 'firebaseUid is required' };
+
+  try {
+    if (!admin.apps.length) {
+      console.warn('⚠️ Firebase Admin SDK not initialized — skipping Firebase deletion');
+      return { success: false, error: 'Firebase Admin not initialized' };
+    }
+
+    // 1. Delete user from Firebase Auth Console
+    try {
+      await admin.auth().deleteUser(firebaseUid);
+      console.log(`🔥 Deleted user ${firebaseUid} from Firebase Auth Console`);
+    } catch (authErr) {
+      if (authErr.code === 'auth/user-not-found') {
+        console.log(`ℹ️ User ${firebaseUid} not found in Firebase Auth (already removed)`);
+      } else {
+        console.warn(`⚠️ Firebase Auth delete notice for ${firebaseUid}:`, authErr.message);
+      }
+    }
+
+    // 2. Clear sessions and user nodes from Firebase Realtime Database
+    const db = getFirebaseDB();
+    if (db) {
+      await Promise.all([
+        db.ref(`sessions/${firebaseUid}`).remove().catch(() => {}),
+        db.ref(`users/${firebaseUid}`).remove().catch(() => {})
+      ]);
+      console.log(`🔥 Cleared sessions & user nodes from Firebase RTDB for ${firebaseUid}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ deleteUserFromFirebase error for ${firebaseUid}:`, error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   syncSeatToFirebase,
   syncSeatsToFirebase,
@@ -434,5 +476,6 @@ module.exports = {
   removeSeatFromFirebase,
   syncBookingToFirebase,
   reconcileAllSeats,
+  deleteUserFromFirebase,
   getFirebaseDB
 };

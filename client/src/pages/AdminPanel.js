@@ -11,7 +11,7 @@ import StudentDetailModal from "../components/admin/StudentDetailModal";
 
 const AdminPanel = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const { userData, loading: userLoading } = useUser();
   const { socket, connected, joinAdminRoom, leaveAdminRoom } = useSocket();
 
@@ -254,11 +254,14 @@ const AdminPanel = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 pb-12">
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
             <h1 className="text-xl sm:text-2xl font-black bg-gradient-to-r from-purple-700 to-indigo-600 bg-clip-text text-transparent">
               Shivika Library Admin Dashboard
             </h1>
+            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 rounded-full text-xs font-bold border border-purple-200">
+              👑 Admin Administrator
+            </span>
             {connected && (
               <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 rounded-full text-xs font-bold">
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
@@ -267,7 +270,7 @@ const AdminPanel = () => {
             )}
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             <button
               onClick={() => {
                 fetchStats();
@@ -275,13 +278,13 @@ const AdminPanel = () => {
               }}
               className="px-3 py-1.5 text-xs font-semibold bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition"
             >
-              🔄 Refresh Data
+              🔄 Refresh
             </button>
             <button
-              onClick={() => navigate("/dashboard")}
-              className="px-4 py-1.5 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow transition"
+              onClick={logout}
+              className="px-4 py-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow transition flex items-center space-x-1"
             >
-              ← User Dashboard
+              <span>🚪 Log Out</span>
             </button>
           </div>
         </div>

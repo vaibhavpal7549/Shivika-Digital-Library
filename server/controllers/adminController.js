@@ -1,5 +1,5 @@
 const { User, Seat, Payment } = require("../models");
-const { syncSeatToFirebase } = require("../services/firebaseSyncService");
+const { syncSeatToFirebase, deleteUserFromFirebase } = require("../services/firebaseSyncService");
 
 /**
  * ============================================
@@ -640,24 +640,28 @@ exports.deleteUser = async (req, res) => {
       });
     }
 
-    // Release seat if booked
+    // 1. Release seat if booked and sync to Firebase
     if (user.seat?.seatNumber) {
       const seat = await Seat.findOne({ seatNumber: user.seat.seatNumber });
       if (seat) {
         await seat.release("user_deleted");
+        await syncSeatToFirebase(seat);
       }
     }
 
-    // Soft delete
-    user.status = "deleted";
-    user.deletedAt = new Date();
-    await user.save();
+    // 2. Delete user from Firebase Auth Console & RTDB
+    if (user.firebaseUid) {
+      await deleteUserFromFirebase(user.firebaseUid);
+    }
 
-    console.log(`✅ User deleted: ${user.fullName}`);
+    // 3. Delete user document from MongoDB
+    await User.findByIdAndDelete(id);
+
+    console.log(`✅ User completely deleted from MongoDB & Firebase: ${user.fullName} (${user.email})`);
 
     res.json({
       success: true,
-      message: "User deleted successfully",
+      message: "User deleted successfully from MongoDB and Firebase",
     });
   } catch (error) {
     console.error("❌ Delete user error:", error);

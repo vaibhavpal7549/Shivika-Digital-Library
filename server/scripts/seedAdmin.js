@@ -75,11 +75,12 @@ async function seedAdmin() {
     }
 
     // Check / update MongoDB Admin user
-    let user = await User.findOne({ $or: [{ email: adminEmail }, { firebaseUid }] });
+    let user = await User.findOne({ $or: [{ email: adminEmail }, { firebaseUid }, { phone: adminPhone }] });
 
     if (user) {
       user.role = "admin";
       user.fullName = adminName;
+      user.email = adminEmail;
       user.firebaseUid = firebaseUid;
       await user.save();
       console.log(`✅ Updated existing user record to role: "admin" (${user.email})`);

@@ -1,6 +1,5 @@
 const { User, Seat, Payment } = require("../models");
 const { syncSeatToFirebase } = require("../services/firebaseSyncService");
-// const googleSheetsService = require('../services/googleSheetsService');
 
 /**
  * ============================================
@@ -9,7 +8,6 @@ const { syncSeatToFirebase } = require("../services/firebaseSyncService");
  *
  * Handles all seat booking operations.
  * Enforces one-seat-per-user rule.
- * Syncs to Google Sheets on changes.
  */
 
 /**
@@ -334,11 +332,6 @@ exports.releaseSeat = async (req, res) => {
     // Sync to Firebase
     await syncSeatToFirebase(seat);
 
-    // Sync to Google Sheets
-    // googleSheetsService.syncUser(user).catch(err => {
-    //   console.error('⚠️  Sheets sync error:', err.message);
-    // });
-
     // Emit socket event
     const io = req.app.get("io");
     if (io) {
@@ -464,11 +457,6 @@ exports.changeSeat = async (req, res) => {
     console.log(
       `✅ ${user.fullName} changed from seat ${oldSeatNumber} to ${newSeatNum}`,
     );
-
-    // Sync to Google Sheets
-    // googleSheetsService.syncUser(user).catch(err => {
-    //   console.error('⚠️  Sheets sync error:', err.message);
-    // });
 
     // Emit socket events
     const io = req.app.get("io");

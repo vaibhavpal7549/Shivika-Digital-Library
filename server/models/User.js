@@ -496,4 +496,31 @@ UserSchema.statics.findOverduePayments = function () {
   });
 };
 
+// ============================================
+// MIDDLEWARE HOOKS FOR AUTOMATIC FIREBASE SYNC
+// ============================================
+
+// Hook: Delete user from Firebase Console & RTDB whenever deleted from MongoDB
+UserSchema.post("findOneAndDelete", async function (doc) {
+  if (doc && doc.firebaseUid) {
+    try {
+      const { deleteUserFromFirebase } = require("../services/firebaseSyncService");
+      await deleteUserFromFirebase(doc.firebaseUid);
+    } catch (err) {
+      console.warn("⚠️ Firebase user deletion sync error:", err.message);
+    }
+  }
+});
+
+UserSchema.post("deleteOne", { document: true, query: false }, async function () {
+  if (this && this.firebaseUid) {
+    try {
+      const { deleteUserFromFirebase } = require("../services/firebaseSyncService");
+      await deleteUserFromFirebase(this.firebaseUid);
+    } catch (err) {
+      console.warn("⚠️ Firebase user deletion sync error:", err.message);
+    }
+  }
+});
+
 module.exports = mongoose.model("User", UserSchema);

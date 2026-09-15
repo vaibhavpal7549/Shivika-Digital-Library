@@ -45,8 +45,6 @@ const {
 } = require("./routes");
 
 // Import services
-// const googleSheetsService = require('./services/googleSheetsService'); // REMOVED
-
 const { initializeJobs } = require("./jobs/scheduledJobs");
 const { initializeSocket } = require("./socket/socketManager");
 

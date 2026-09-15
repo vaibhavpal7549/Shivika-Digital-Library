@@ -48,19 +48,7 @@ const initializeJobs = (socketIO) => {
     await markOverduePayments();
   });
 
-  // Job 3: Sync pending users to Google Sheets (runs every 15 minutes)
-  cron.schedule('*/15 * * * *', async () => {
-    console.log('🔄 Running: Sync pending users to Google Sheets');
-    await syncPendingToSheets();
-  });
-
-  // Job 4: Highlight expired seats in Google Sheets (runs daily at 6 AM)
-  cron.schedule('0 6 * * *', async () => {
-    console.log('🔄 Running: Highlight expired seats in Google Sheets');
-    await highlightExpiredInSheets();
-  });
-
-  // Job 5: Clean up stale data (Disabled per requirements to preserve historical records)
+  // Job 3: Clean up stale data (Disabled per requirements to preserve historical records)
   cron.schedule('0 3 * * 0', async () => {
     console.log('ℹ️ Weekly cleanup skipped to preserve historical records');
   });
@@ -170,28 +158,6 @@ const markOverduePayments = async () => {
 };
 
 /**
- * Sync pending users to Google Sheets (Placeholder / No-op)
- */
-const syncPendingToSheets = async () => {
-  return 0;
-};
-
-/**
- * Highlight expired seats in Google Sheets
- * Runs daily to visually mark expired seats for admin
- */
-const highlightExpiredInSheets = async () => {
-  try {
-    // await googleSheetsService.highlightExpiredSeats();
-    console.log('✅ Highlighted expired seats in Google Sheets');
-    return true;
-  } catch (error) {
-    console.error('❌ Highlight expired job failed:', error);
-    return false;
-  }
-};
-
-/**
  * Weekly cleanup (Disabled to preserve historical student and payment records)
  */
 const weeklyCleanup = async () => {
@@ -208,10 +174,6 @@ const runJobManually = async (jobName) => {
       return await autoReleaseExpiredSeats();
     case 'markOverduePayments':
       return await markOverduePayments();
-    case 'syncPendingToSheets':
-      return await syncPendingToSheets();
-    case 'highlightExpiredInSheets':
-      return await highlightExpiredInSheets();
     case 'weeklyCleanup':
       return await weeklyCleanup();
     default:
@@ -228,8 +190,6 @@ const getJobStatus = () => {
       { name: 'autoReleaseExpiredSeats', schedule: 'Every hour', description: 'Release expired seats' },
       { name: 'reconcileFirebaseSeats', schedule: 'Every 6 hours', description: 'Reconcile MongoDB → Firebase seats' },
       { name: 'markOverduePayments', schedule: 'Daily at midnight', description: 'Mark overdue payments' },
-      { name: 'syncPendingToSheets', schedule: 'Every 15 minutes', description: 'Sync to Google Sheets' },
-      { name: 'highlightExpiredInSheets', schedule: 'Daily at 6 AM', description: 'Highlight expired in sheets' },
       { name: 'weeklyCleanup', schedule: 'Weekly on Sunday 3 AM', description: 'Clean up stale data' }
     ],
     initialized: true
@@ -240,8 +200,6 @@ module.exports = {
   initializeJobs,
   autoReleaseExpiredSeats,
   markOverduePayments,
-  syncPendingToSheets,
-  highlightExpiredInSheets,
   weeklyCleanup,
   runJobManually,
   getJobStatus

@@ -52,6 +52,12 @@ export default function Dashboard() {
   const [isForceLoggingOut, setIsForceLoggingOut] = useState(false);
 
   useEffect(() => {
+    if (isAdmin) {
+      navigate('/admin', { replace: true });
+    }
+  }, [isAdmin, navigate]);
+
+  useEffect(() => {
     setTotalFee(selectedHours * HOURLY_RATE);
   }, [selectedHours]);
 

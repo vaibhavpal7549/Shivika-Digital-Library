@@ -96,12 +96,19 @@ export default function Login() {
         }
 
         // Sync MongoDB user & profile state before navigating
-        await fetchUserData(result.user.uid);
+        const fetchedUserData = await fetchUserData(result.user.uid);
         await refreshProfile(result.user.uid);
-      }
 
-      toast.success("Logged in successfully!");
-      navigate("/dashboard");
+        toast.success("Logged in successfully!");
+        if (
+          fetchedUserData?.role === "admin" ||
+          normalizedEmail.includes("admin")
+        ) {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
+      }
     } catch (error) {
       console.error("Login error:", error);
       setIsLoading(false);

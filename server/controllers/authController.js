@@ -1,6 +1,5 @@
 const { User, Seat, Payment } = require("../models");
 const { validateAndNormalizeIdentity } = require("../utils/identityUtils");
-// const googleSheetsService = require('../services/googleSheetsService');
 
 /**
  * ============================================
@@ -150,11 +149,6 @@ exports.signup = async (req, res) => {
 
     await user.save();
     console.log(`✅ New user registered: ${normalizedEmail}`);
-
-    // Sync to Google Sheets (background, don't block response)
-    // googleSheetsService.syncUser(user).catch(err => {
-    //   console.error('⚠️  Sheets sync error:', err.message);
-    // });
 
     res.status(201).json({
       success: true,
@@ -358,11 +352,6 @@ exports.updateUser = async (req, res) => {
     }
 
     await user.save();
-
-    // Sync to Google Sheets
-    // googleSheetsService.syncUser(user).catch(err => {
-    //   console.error('⚠️  Sheets sync error:', err.message);
-    // });
 
     res.json({
       success: true,

@@ -33,6 +33,49 @@ const StudentTable = ({
         });
   };
 
+  const getPlanTypeLabel = (student) => {
+    const seat = student?.seat || {};
+    const payment = student?.payment || {};
+
+    const mode =
+      student?.planType ||
+      student?.feeCalculationMode ||
+      seat?.feeCalculationMode ||
+      payment?.feeCalculationMode ||
+      payment?.currentPlan;
+
+    const shift = seat?.shift || student?.shift;
+    const dailyHours = seat?.dailyHours || student?.dailyHours || payment?.hoursPerDay;
+
+    if (mode === "hourly" || shift === "custom" || dailyHours) {
+      return dailyHours ? `Hourly (${dailyHours}h)` : "Hourly Plan";
+    }
+
+    if (
+      mode === "fixed" ||
+      mode === "monthly" ||
+      shift === "fullday" ||
+      shift === "full_day" ||
+      shift === "Full Day"
+    ) {
+      return "Fixed Plan";
+    }
+
+    if (shift) {
+      const lowerShift = String(shift).toLowerCase();
+      if (lowerShift.includes("hour") || lowerShift === "custom") {
+        return "Hourly Plan";
+      }
+      return "Fixed Plan";
+    }
+
+    if (seat?.seatNumber || student?.seatNumber) {
+      return "Fixed Plan";
+    }
+
+    return "N/A";
+  };
+
   const renderSortHeader = (title, fieldKey) => {
     const isSorted = sortBy === fieldKey;
     return (
@@ -93,6 +136,7 @@ const StudentTable = ({
                 </th>
                 {renderSortHeader("Deadline", "paymentDeadline")}
                 {renderSortHeader("Months Paid", "monthsPaid")}
+                {renderSortHeader("Plan Type", "planType")}
                 <th className="px-3 py-3 font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase border-r border-gray-200 dark:border-gray-700">
                   Paid Through
                 </th>
@@ -107,6 +151,7 @@ const StudentTable = ({
                   Exit / Release Date
                 </th>
                 {renderSortHeader("Total Months", "monthsPaid")}
+                {renderSortHeader("Plan Type", "planType")}
                 <th className="px-3 py-3 font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase border-r border-gray-200 dark:border-gray-700">
                   Last Paid Month
                 </th>
@@ -212,6 +257,29 @@ const StudentTable = ({
                       {student.monthsPaid || 0}
                     </td>
 
+                    {/* Plan Type */}
+                    <td className="px-3 py-2.5 border-r border-gray-200 dark:border-gray-700 whitespace-nowrap text-center">
+                      {(() => {
+                        const label = getPlanTypeLabel(student);
+                        if (label === "N/A") {
+                          return <span className="text-gray-400 font-medium">N/A</span>;
+                        }
+                        const isHourly = label.toLowerCase().includes("hourly");
+                        return (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+                              isHourly
+                                ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                            }`}
+                          >
+                            {isHourly ? "⏱ " : "📚 "}
+                            {label}
+                          </span>
+                        );
+                      })()}
+                    </td>
+
                     {/* Paid Through */}
                     <td className="px-3 py-2.5 border-r border-gray-200 dark:border-gray-700 whitespace-nowrap font-medium text-gray-700 dark:text-gray-300">
                       {formatMonth(student.paidThroughDate || payment.nextDueDate)}
@@ -239,6 +307,29 @@ const StudentTable = ({
                     {/* Total Months */}
                     <td className="px-3 py-2.5 border-r border-gray-200 dark:border-gray-700 font-bold text-center">
                       {student.monthsPaid || 0}
+                    </td>
+
+                    {/* Plan Type */}
+                    <td className="px-3 py-2.5 border-r border-gray-200 dark:border-gray-700 whitespace-nowrap text-center">
+                      {(() => {
+                        const label = getPlanTypeLabel(student);
+                        if (label === "N/A") {
+                          return <span className="text-gray-400 font-medium">N/A</span>;
+                        }
+                        const isHourly = label.toLowerCase().includes("hourly");
+                        return (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+                              isHourly
+                                ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                            }`}
+                          >
+                            {isHourly ? "⏱ " : "📚 "}
+                            {label}
+                          </span>
+                        );
+                      })()}
                     </td>
 
                     {/* Last Paid Month */}

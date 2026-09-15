@@ -30,6 +30,46 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
     });
   };
 
+  const getPlanTypeLabel = () => {
+    const mode =
+      student?.planType ||
+      student?.feeCalculationMode ||
+      seat?.feeCalculationMode ||
+      payment?.feeCalculationMode ||
+      payment?.currentPlan;
+
+    const shift = seat?.shift || student?.shift;
+    const dailyHours = seat?.dailyHours || student?.dailyHours || payment?.hoursPerDay;
+
+    if (mode === "hourly" || shift === "custom" || dailyHours) {
+      return dailyHours ? `Hourly Plan (${dailyHours} hrs/day)` : "Hourly Plan";
+    }
+
+    if (
+      mode === "fixed" ||
+      mode === "monthly" ||
+      shift === "fullday" ||
+      shift === "full_day" ||
+      shift === "Full Day"
+    ) {
+      return "Fixed Monthly Plan";
+    }
+
+    if (shift) {
+      const lowerShift = String(shift).toLowerCase();
+      if (lowerShift.includes("hour") || lowerShift === "custom") {
+        return "Hourly Plan";
+      }
+      return "Fixed Monthly Plan";
+    }
+
+    if (seat?.seatNumber || student?.seatNumber) {
+      return "Fixed Monthly Plan";
+    }
+
+    return "N/A";
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 animate-fadeIn">
@@ -156,8 +196,8 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
                     </span>
                   </div>
                   <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Shift</span>
-                    <span className="font-semibold capitalize">{seat.shift || "Full Day"}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block">Shift / Plan</span>
+                    <span className="font-semibold capitalize">{getPlanTypeLabel()}</span>
                   </div>
                   <div>
                     <span className="text-xs text-gray-500 dark:text-gray-400 block">Booking Date</span>
@@ -207,7 +247,7 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
             <h3 className="text-md font-bold text-purple-700 dark:text-purple-400 border-b pb-2 mb-3 flex items-center">
               <span className="mr-2">💳</span> Fee Summary & Overview
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl">
               <div>
                 <span className="text-xs text-gray-500 dark:text-gray-400 block">Current Status</span>
                 <span className={`font-bold capitalize ${
@@ -220,6 +260,12 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
                 <span className="text-xs text-gray-500 dark:text-gray-400 block">Months Paid</span>
                 <span className="font-bold text-purple-700 dark:text-purple-300">
                   {student.monthsPaid || 0} Month(s)
+                </span>
+              </div>
+              <div>
+                <span className="text-xs text-gray-500 dark:text-gray-400 block">Plan Type</span>
+                <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                  {getPlanTypeLabel()}
                 </span>
               </div>
               <div>

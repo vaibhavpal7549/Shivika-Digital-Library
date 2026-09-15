@@ -95,6 +95,24 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, []);
 
+  // Demo mode baseline seats fallback (5 booked seats: 1, 5, 12, 18, 25)
+  useEffect(() => {
+    if (isDemo || sessionStorage.getItem('is_demo_mode') === 'true') {
+      setSeats(prev => {
+        const hasBookings = Object.values(prev).some(s => s && (s.isBooked || s.status === 'booked'));
+        if (hasBookings) return prev;
+        const demoSeats = {};
+        for (let i = 1; i <= 60; i++) {
+          demoSeats[i] = { seatNumber: i, status: 'available', isBooked: false };
+        }
+        [1, 5, 12, 18, 25].forEach(num => {
+          demoSeats[num] = { seatNumber: num, status: 'booked', isBooked: true, bookedBy: `demo-user-${num}` };
+        });
+        return { ...demoSeats, ...prev };
+      });
+    }
+  }, [isDemo]);
+
   // 3. Socket.IO real-time updates for seat events
   useEffect(() => {
     if (!lastSeatUpdate) return;

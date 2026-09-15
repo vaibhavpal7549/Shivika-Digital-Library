@@ -36,10 +36,16 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 export default function Booking() {
   const { seatNumber } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, isDemo } = useAuth();
   const { isProfileComplete, getMissingFields } = useProfile();
   const { userData, refreshUserData } = useUser();
   const { lastSeatUpdate } = useSocket();
+
+  const isDemoUser =
+    isDemo ||
+    currentUser?.isDemo ||
+    currentUser?.uid?.startsWith("demo-") ||
+    sessionStorage.getItem("demo_mode") === "true";
 
   const [feeCalculationMode, setFeeCalculationMode] = useState("hourly");
   const [selectedMonths, setSelectedMonths] = useState(1);
@@ -227,39 +233,45 @@ export default function Booking() {
 
     // Check existing seat via backend (NOT cached data)
     try {
-      const userSeatResponse = await apiClient.get(
-        `/api/seats/user/${currentUser.uid}`,
-      );
+      if (!isDemoUser && currentUser?.uid) {
+        const userSeatResponse = await apiClient.get(
+          `/api/seats/user/${currentUser.uid}`,
+        );
 
-      if (userSeatResponse.data.success && userSeatResponse.data.hasSeat) {
-        if (!changeSeatInProgress) {
-          toast.error(
-            `You already have Seat ${userSeatResponse.data.seatNumber} booked. Only one seat per user is allowed.`,
-          );
-          return;
+        if (userSeatResponse.data?.success && userSeatResponse.data?.hasSeat) {
+          if (!changeSeatInProgress) {
+            toast.error(
+              `You already have Seat ${userSeatResponse.data.seatNumber} booked. Only one seat per user is allowed.`,
+            );
+            return;
+          }
         }
       }
     } catch (error) {
-      console.error("Backend user seat check failed:", error);
-      toast.error("Unable to verify your booking status. Please try again.");
-      return;
+      console.warn("Backend user seat check warning:", error);
+      if (userExistingSeat && !changeSeatInProgress) {
+        toast.error(
+          `You already have Seat ${userExistingSeat.seatNumber} booked. Only one seat per user is allowed.`,
+        );
+        return;
+      }
     }
 
     // Check seat availability via backend
     try {
-      const availabilityResponse = await apiClient.get(
-        `/api/seats/${seatNumber}`,
-      );
+      if (!isDemoUser) {
+        const availabilityResponse = await apiClient.get(
+          `/api/seats/${seatNumber}`,
+        );
 
-      if (availabilityResponse.data.seat.isBooked) {
-        toast.error("This seat is already booked! Please select another seat.");
-        navigate("/seats");
-        return;
+        if (availabilityResponse.data?.seat?.isBooked) {
+          toast.error("This seat is already booked! Please select another seat.");
+          navigate("/seats");
+          return;
+        }
       }
     } catch (error) {
-      console.error("Backend seat availability check failed:", error);
-      toast.error("Unable to verify seat availability. Please try again.");
-      return;
+      console.warn("Backend seat availability check warning:", error);
     }
 
     // Mark as processing
@@ -270,6 +282,19 @@ export default function Booking() {
     setBookingCompleted(false);
 
     const loadingToast = toast.loading("Initializing payment...");
+
+    // Demo Mode handling
+    if (isDemoUser) {
+      setTimeout(() => {
+        toast.dismiss(loadingToast);
+        toast.success(`🎉 Demo Booking Successful! Seat ${seatNumber} has been booked.`, { duration: 4000 });
+        setBookingCompleted(true);
+        setPaymentStatus("success");
+        isProcessingPayment.current = false;
+        setLoading(false);
+      }, 1000);
+      return;
+    }
 
     try {
       // Get Razorpay key

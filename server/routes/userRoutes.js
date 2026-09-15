@@ -68,43 +68,9 @@ router.post("/upload-avatar", upload.single("avatar"), (req, res) => {
       url: relativeUrl,
       message: "Avatar uploaded successfully",
     });
-/**
- * DELETE /api/users/avatar
- * Remove profile photo from server disk and clear user.photoURL in MongoDB
- */
-router.delete("/avatar", async (req, res) => {
-  try {
-    const firebaseUid = req.auth.uid;
-    const user = await User.findOne({ firebaseUid });
-
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    if (user.photoURL && user.photoURL.startsWith("/uploads/avatars/")) {
-      const filename = path.basename(user.photoURL);
-      const filePath = path.join(uploadsDir, filename);
-      if (fs.existsSync(filePath)) {
-        try {
-          fs.unlinkSync(filePath);
-          console.log(`🗑️ Deleted avatar file from disk: ${filePath}`);
-        } catch (e) {
-          console.warn("⚠️ Error deleting avatar file:", e.message);
-        }
-      }
-    }
-
-    user.photoURL = null;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: "Profile photo deleted successfully",
-      user,
-    });
   } catch (error) {
-    console.error("❌ Delete avatar error:", error);
-    res.status(500).json({ success: false, error: "Failed to delete avatar" });
+    console.error("❌ Avatar upload error:", error);
+    res.status(500).json({ success: false, error: "Failed to upload avatar" });
   }
 });
 

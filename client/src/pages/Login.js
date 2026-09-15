@@ -200,33 +200,26 @@ export default function Login() {
 
             {/* ========================================
                 EMAIL/PASSWORD FORM
-                Enhanced with clean inputs & validation
+                Enhanced with floating labels & validation
                 ======================================== */}
-            <form
-              onSubmit={handleEmailSubmit}
-              className="space-y-4 animate-fadeIn"
-            >
-              {/* Email Input */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-700">
-                  Email Address
-                </label>
-                <div
-                  className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all duration-300 ${
-                    focusedField === "email"
-                      ? "border-blue-500 bg-white shadow-lg shadow-blue-500/20"
-                      : email && isEmailValid
-                        ? "border-green-400 bg-green-50/30"
-                        : "border-gray-200 bg-gray-50/50 hover:border-blue-200 hover:bg-white"
-                  }`}
-                >
-                  <Mail
-                    className={`w-5 h-5 flex-shrink-0 transition-colors ${
-                      focusedField === "email"
-                        ? "text-blue-500"
-                        : "text-gray-400"
+              <form
+                onSubmit={handleEmailSubmit}
+                className="space-y-5 animate-fadeIn"
+              >
+                {/* Email Input with Floating Label Effect */}
+                <div className="relative">
+                  <div
+                    className={`absolute left-4 top-1/2 -translate-y-1/2 transition-all duration-200 pointer-events-none ${
+                      focusedField === "email" || email
+                        ? "-translate-y-9 text-xs text-blue-600 bg-white px-1"
+                        : "text-gray-500"
                     }`}
-                  />
+                  >
+                    <span className="flex items-center gap-1">
+                      <Mail className="w-4 h-4" />
+                      Email Address
+                    </span>
+                  </div>
                   <input
                     type="email"
                     value={email}
@@ -234,14 +227,21 @@ export default function Login() {
                     onFocus={() => setFocusedField("email")}
                     onBlur={() => setFocusedField(null)}
                     required
-                    className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-400 text-sm sm:text-base font-medium w-full"
-                    placeholder="Enter your email"
+                    className={`w-full px-4 py-4 pl-4 border-2 rounded-xl text-gray-900 placeholder-transparent focus:outline-none transition-all duration-300 pointer-events-auto bg-gray-50/50 hover:bg-white ${
+                      focusedField === "email"
+                        ? "border-blue-500 bg-white shadow-lg shadow-blue-500/20"
+                        : email && isEmailValid
+                          ? "border-green-400 bg-green-50/30"
+                          : "border-gray-200 hover:border-blue-200 hover:shadow-md"
+                    }`}
+                    placeholder="Email Address"
                     disabled={isLoading}
                     aria-label="Email Address"
                     autoComplete="email"
                   />
+                  {/* Validation Icon */}
                   {email && (
-                    <div className="flex-shrink-0">
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
                       {isEmailValid ? (
                         <Check className="w-5 h-5 text-green-500" />
                       ) : (
@@ -250,29 +250,21 @@ export default function Login() {
                     </div>
                   )}
                 </div>
-              </div>
 
-              {/* Password Input */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-gray-700">
-                  Password
-                </label>
-                <div
-                  className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all duration-300 ${
-                    focusedField === "password"
-                      ? "border-blue-500 bg-white shadow-lg shadow-blue-500/20"
-                      : password && isPasswordValid
-                        ? "border-green-400 bg-green-50/30"
-                        : "border-gray-200 bg-gray-50/50 hover:border-blue-200 hover:bg-white"
-                  }`}
-                >
-                  <Lock
-                    className={`w-5 h-5 flex-shrink-0 transition-colors ${
-                      focusedField === "password"
-                        ? "text-blue-500"
-                        : "text-gray-400"
+                {/* Password Input with Toggle */}
+                <div className="relative">
+                  <div
+                    className={`absolute left-4 top-1/2 -translate-y-1/2 transition-all duration-200 pointer-events-none ${
+                      focusedField === "password" || password
+                        ? "-translate-y-9 text-xs text-blue-600 bg-white px-1"
+                        : "text-gray-500"
                     }`}
-                  />
+                  >
+                    <span className="flex items-center gap-1">
+                      <Lock className="w-4 h-4" />
+                      Password
+                    </span>
+                  </div>
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
@@ -281,16 +273,24 @@ export default function Login() {
                     onBlur={() => setFocusedField(null)}
                     required
                     minLength={6}
-                    className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-400 text-sm sm:text-base font-medium w-full"
-                    placeholder="Enter your password"
+                    className={`w-full px-4 py-4 pr-12 border-2 rounded-xl text-gray-900 placeholder-transparent focus:outline-none transition-all duration-300 pointer-events-auto bg-gray-50/50 hover:bg-white ${
+                      focusedField === "password"
+                        ? "border-blue-500 bg-white shadow-lg shadow-blue-500/20"
+                        : password && isPasswordValid
+                          ? "border-green-400 bg-green-50/30"
+                          : "border-gray-200 hover:border-blue-200 hover:shadow-md"
+                    }`}
+                    placeholder="Password"
                     disabled={isLoading}
                     autoComplete="current-password"
                     aria-label="Password"
                   />
+
+                  {/* Password Toggle Button */}
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-gray-600 focus:outline-none p-1 flex-shrink-0"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none p-1"
                     aria-label={
                       showPassword ? "Hide password" : "Show password"
                     }
@@ -302,13 +302,14 @@ export default function Login() {
                     )}
                   </button>
                 </div>
+
+                {/* Password Strength Hint */}
                 {password && password.length < 6 && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1 pt-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
+                  <p className="text-xs text-amber-600 flex items-center gap-1 -mt-2">
+                    <AlertCircle className="w-3 h-3" />
                     Password must be at least 6 characters
                   </p>
                 )}
-              </div>
 
                 {/* Submit Button - Primary CTA */}
                 <button

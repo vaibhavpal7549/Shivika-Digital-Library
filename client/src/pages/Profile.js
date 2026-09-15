@@ -27,7 +27,6 @@ import {
   Save,
   Loader2,
   Shield,
-  Trash2,
   Image as ImageIcon
 } from 'lucide-react';
 
@@ -194,34 +193,6 @@ export default function Profile() {
     }
   };
 
-  const handleDeletePhoto = async () => {
-    try {
-      setFormData((prev) => ({
-        ...prev,
-        profilePhoto: "",
-      }));
-
-      if (currentUser && !currentUser.isDemo) {
-        try {
-          await apiClient.delete("/api/users/avatar");
-        } catch (e) {
-          console.warn("Backend delete avatar warning:", e.message);
-        }
-      }
-
-      await updateProfile({
-        ...formData,
-        profilePhoto: "",
-        photoURL: "",
-      });
-
-      toast.success("Profile photo deleted successfully!");
-    } catch (err) {
-      console.error("Error deleting photo:", err);
-      toast.success("Photo removed! Click Save to apply changes.");
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -315,9 +286,9 @@ export default function Profile() {
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 -mt-12 sm:-mt-16">
                 {/* Avatar & Name */}
                 <div className="flex items-end gap-4">
-                  {/* Profile Photo with Upload & Delete */}
+                  {/* Profile Photo with Upload */}
                   <div className="relative group">
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-white p-1 shadow-lg relative">
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-white p-1 shadow-lg">
                       {formData.profilePhoto ? (
                         <img
                           src={getImageUrl(formData.profilePhoto)}
@@ -330,26 +301,13 @@ export default function Profile() {
                         </div>
                       )}
                     </div>
-
-                    {/* Delete Photo Badge Button */}
-                    {formData.profilePhoto && isEditing && (
-                      <button
-                        type="button"
-                        onClick={handleDeletePhoto}
-                        className="absolute -top-2 -right-2 bg-rose-600 hover:bg-rose-700 text-white p-2 rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 z-30"
-                        title="Delete Profile Photo"
-                        aria-label="Delete Profile Photo"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
                     
                     {/* Photo Upload Overlay */}
                     {isEditing && (
-                      <label className="absolute inset-1 rounded-xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer flex items-center justify-center z-20">
+                      <label className="absolute inset-1 rounded-xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer flex items-center justify-center">
                         <div className="text-center text-white">
                           <Camera className="w-6 h-6 mx-auto mb-1" />
-                          <span className="text-xs font-medium">Change Photo</span>
+                          <span className="text-xs font-medium">Change</span>
                         </div>
                         <input
                           type="file"

@@ -305,32 +305,57 @@ export default function Gallery() {
         {/* Filter Tabs */}
         <div className="flex gap-3 mb-8 flex-wrap">
           {[
-            { value: 'all', label: 'All', icon: '📋', color: 'purple' },
-            { value: 'images', label: 'Photos', icon: '📸', color: 'blue' },
-            { value: 'videos', label: 'Videos', icon: '🎬', color: 'pink' },
-          ].map(tab => (
-            <button
-              key={tab.value}
-              onClick={() => setFilter(tab.value)}
-              className={`group relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center gap-3 ${
-                filter === tab.value
-                  ? `bg-gradient-to-r from-${tab.color}-600 to-${tab.color}-700 text-white shadow-lg shadow-${tab.color}-500/30`
-                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-' + tab.color + '-300 hover:shadow-md'
-              }`}
-            >
-              <span className={`text-2xl transition-transform duration-300 ${
-                filter === tab.value ? 'scale-110' : 'group-hover:scale-110'
-              }`}>
-                {tab.icon}
-              </span>
-              <span className="font-bold">{tab.label}</span>
-              {filter === tab.value && (
-                <span className="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-xs">
-                  {tab.value === 'all' ? stats.totalItems : tab.value === 'images' ? stats.imageCount : stats.videoCount}
+            {
+              value: 'all',
+              label: 'All',
+              icon: '📋',
+              activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/30 border-2 border-purple-600',
+              hoverClass: 'hover:border-purple-300 hover:text-purple-600'
+            },
+            {
+              value: 'images',
+              label: 'Photos',
+              icon: '📸',
+              activeClass: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 border-2 border-blue-600',
+              hoverClass: 'hover:border-blue-300 hover:text-blue-600'
+            },
+            {
+              value: 'videos',
+              label: 'Videos',
+              icon: '🎬',
+              activeClass: 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-pink-500/30 border-2 border-pink-600',
+              hoverClass: 'hover:border-pink-300 hover:text-pink-600'
+            },
+          ].map(tab => {
+            const isActive = filter === tab.value;
+            const count = tab.value === 'all' ? stats.totalItems : tab.value === 'images' ? stats.imageCount : stats.videoCount;
+
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setFilter(tab.value)}
+                className={`group relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center gap-3 ${
+                  isActive
+                    ? tab.activeClass
+                    : `bg-white text-gray-700 border-2 border-gray-200 ${tab.hoverClass} hover:shadow-md`
+                }`}
+              >
+                <span className={`text-2xl transition-transform duration-300 ${
+                  isActive ? 'scale-110' : 'group-hover:scale-110'
+                }`}>
+                  {tab.icon}
                 </span>
-              )}
-            </button>
-          ))}
+                <span className="font-bold text-sm sm:text-base text-current">{tab.label}</span>
+                <span className={`ml-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold transition-colors ${
+                  isActive
+                    ? 'bg-white/20 text-white'
+                    : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Gallery Grid */}

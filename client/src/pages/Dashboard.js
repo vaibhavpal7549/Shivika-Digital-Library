@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { useUser } from '../contexts/UserContext';
+import { useSocket } from '../contexts/SocketContext';
 import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import toast from 'react-hot-toast';
+import apiClient from '../utils/apiClient';
 import { HOURLY_RATE } from '../utils/feeUtils';
 import { 
   User, 
@@ -37,6 +39,7 @@ export default function Dashboard() {
   } = useAuth();
   const { isProfileComplete, profile, bookedSeat, hasBookedSeat } = useProfile();
   const { userData } = useUser();
+  const { lastSeatUpdate } = useSocket();
 
   const isAdmin = userData?.role === 'admin' || profile?.role === 'admin';
   const displayName = isAdmin
@@ -61,19 +64,90 @@ export default function Dashboard() {
     setTotalFee(selectedHours * HOURLY_RATE);
   }, [selectedHours]);
 
+  // 1. Initial MongoDB API fetch for baseline seats
   useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const response = await apiClient.get('/api/seat/all');
+        if (isMounted && response.data?.success) {
+          setSeats(response.data.seats || {});
+        }
+      } catch (err) {
+        // Non-fatal, Firebase RTDB will provide data
+      }
+    })();
+    return () => { isMounted = false; };
+  }, []);
+
+  // 2. Firebase Realtime Database listener (live seat updates)
+  useEffect(() => {
+    if (!database) return;
     const seatsRef = ref(database, 'seats');
     const unsubscribe = onValue(seatsRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      setSeats(data);
+      const data = snapshot.val();
+      if (data && Object.keys(data).length > 0) {
+        setSeats(prev => ({ ...prev, ...data }));
+      }
     });
 
     return () => unsubscribe();
   }, []);
 
-  const bookedCount = Object.values(seats).filter(seat => seat.status === 'booked').length;
-  const vacantCount = 60 - bookedCount;
-  const occupancyPercentage = Math.round((bookedCount / 60) * 100);
+  // 3. Socket.IO real-time updates for seat events
+  useEffect(() => {
+    if (!lastSeatUpdate) return;
+    setSeats(prevSeats => {
+      const newSeats = { ...prevSeats };
+      if (lastSeatUpdate.type === 'SEAT_BOOKED') {
+        newSeats[lastSeatUpdate.seatNumber] = {
+          ...newSeats[lastSeatUpdate.seatNumber],
+          status: 'booked',
+          isBooked: true,
+          bookedBy: lastSeatUpdate.userId
+        };
+      } else if (lastSeatUpdate.type === 'SEAT_RELEASED') {
+        if (newSeats[lastSeatUpdate.seatNumber]) {
+          newSeats[lastSeatUpdate.seatNumber] = {
+            ...newSeats[lastSeatUpdate.seatNumber],
+            status: 'available',
+            isBooked: false,
+            bookedBy: null
+          };
+        }
+      } else if (lastSeatUpdate.type === 'SEAT_CHANGED') {
+        if (lastSeatUpdate.oldSeatNumber && newSeats[lastSeatUpdate.oldSeatNumber]) {
+          newSeats[lastSeatUpdate.oldSeatNumber] = {
+            ...newSeats[lastSeatUpdate.oldSeatNumber],
+            status: 'available',
+            isBooked: false,
+            bookedBy: null
+          };
+        }
+        newSeats[lastSeatUpdate.newSeatNumber] = {
+          ...newSeats[lastSeatUpdate.newSeatNumber],
+          status: 'booked',
+          isBooked: true,
+          bookedBy: lastSeatUpdate.userId
+        };
+      }
+      return newSeats;
+    });
+  }, [lastSeatUpdate]);
+
+  const bookedCount = Object.values(seats).filter(seat => {
+    if (!seat) return false;
+    return (
+      seat.isBooked === true ||
+      seat.isBooked === 'true' ||
+      seat.status === 'booked' ||
+      seat.status === 'occupied' ||
+      Boolean(seat.bookedBy)
+    );
+  }).length;
+
+  const vacantCount = Math.max(0, 60 - bookedCount);
+  const occupancyPercentage = Math.min(100, Math.round((bookedCount / 60) * 100));
 
   /**
    * Handle Logout

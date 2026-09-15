@@ -255,7 +255,7 @@ export function AuthProvider({ children }) {
     if (isDemoUser) {
       toast("You are in demo mode click exit demo button to go out", {
         icon: "⚠️",
-        duration: 5000,
+        duration: 3000,
         style: {
           borderRadius: "12px",
           background: "#1e293b",
@@ -523,7 +523,7 @@ export function AuthProvider({ children }) {
     if (isDemoUser) {
       toast("You are in demo mode click exit demo button to go out", {
         icon: "⚠️",
-        duration: 5000,
+        duration: 3000,
         style: {
           borderRadius: "12px",
           background: "#1e293b",

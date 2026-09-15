@@ -26,16 +26,98 @@ import apiClient from "../utils/apiClient";
  * - Payment type = 'fee_payment' → Shows "Fee Only"
  * - Payment verification failed → Shows appropriate status
  */
+// Mock payment records for Demo Mode
+const DEMO_PAYMENTS = [
+  {
+    _id: "demo_pay_101",
+    razorpayOrderId: "order_demo_101",
+    razorpayPaymentId: "pay_demo_98765432101",
+    amount: 1200,
+    currency: "INR",
+    paymentStatus: "paid",
+    status: "success",
+    paymentMode: "online_upi",
+    paymentType: "seat_booking",
+    seatNumber: 12,
+    months: 1,
+    dailyHours: null,
+    feeCalculationMode: "fixed",
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    validUntil: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
+    transactionId: "TXN_UPI_98765432101",
+  },
+  {
+    _id: "demo_pay_102",
+    razorpayOrderId: "order_demo_102",
+    razorpayPaymentId: "pay_demo_98765432102",
+    amount: 1200,
+    currency: "INR",
+    paymentStatus: "paid",
+    status: "success",
+    paymentMode: "online_netbanking",
+    paymentType: "seat_booking",
+    seatNumber: 12,
+    months: 1,
+    dailyHours: null,
+    feeCalculationMode: "fixed",
+    createdAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
+    validUntil: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    transactionId: "TXN_NB_98765432102",
+  },
+  {
+    _id: "demo_pay_103",
+    razorpayOrderId: "order_demo_103",
+    razorpayPaymentId: "pay_demo_98765432103",
+    amount: 750,
+    currency: "INR",
+    paymentStatus: "paid",
+    status: "success",
+    paymentMode: "card",
+    paymentType: "fee_payment",
+    seatNumber: null,
+    months: 1,
+    dailyHours: 4,
+    feeCalculationMode: "hourly",
+    createdAt: new Date(Date.now() - 65 * 24 * 60 * 60 * 1000).toISOString(),
+    validUntil: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
+    transactionId: "TXN_CARD_98765432103",
+  },
+];
+
+const DEMO_STATS = {
+  totalPaid: 3150,
+  totalPayments: 3,
+  successfulPayments: 3,
+  lastPaymentDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+};
+
 export default function PaymentHistory() {
-  const { currentUser } = useAuth();
+  const { currentUser, isDemo } = useAuth();
   const [payments, setPayments] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch payments from MongoDB API (source of truth)
+  // Fetch payments from MongoDB API (source of truth) with Demo Mode fallback
   const fetchPayments = useCallback(async () => {
-    if (!currentUser?.uid) return;
+    const isDemoUser =
+      isDemo ||
+      currentUser?.isDemo ||
+      currentUser?.uid?.startsWith("demo-") ||
+      sessionStorage.getItem("demo_mode") === "true";
+
+    if (isDemoUser) {
+      setError(null);
+      setPayments(DEMO_PAYMENTS);
+      setStats(DEMO_STATS);
+      setLoading(false);
+      return;
+    }
+
+    if (!currentUser?.uid) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setError(null);
@@ -52,29 +134,45 @@ export default function PaymentHistory() {
       }
     } catch (err) {
       console.error("Error fetching payments from API:", err);
-      setError("Failed to load payment history");
+      // Fallback for demo / sample account if API fails
+      if (
+        isDemoUser ||
+        currentUser?.isDemo ||
+        currentUser?.uid?.startsWith("demo-")
+      ) {
+        setPayments(DEMO_PAYMENTS);
+        setStats(DEMO_STATS);
+        setError(null);
+      } else {
+        setError("Failed to load payment history");
+      }
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.uid]);
+  }, [currentUser, isDemo]);
 
-  // Initial fetch from MongoDB
+  // Initial fetch from MongoDB / Demo Data
   useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
 
-  // Firebase listener for real-time updates (triggers re-fetch)
+  // Firebase listener for real-time updates (disabled for demo mode)
   useEffect(() => {
-    if (!currentUser) return;
+    const isDemoUser =
+      isDemo ||
+      currentUser?.isDemo ||
+      currentUser?.uid?.startsWith("demo-") ||
+      sessionStorage.getItem("demo_mode") === "true";
+
+    if (!currentUser || isDemoUser) return;
 
     const paymentsRef = ref(database, "payments");
     const unsubscribe = onValue(paymentsRef, () => {
-      // When Firebase updates, re-fetch from MongoDB for consistency
       fetchPayments();
     });
 
     return () => unsubscribe();
-  }, [currentUser, fetchPayments]);
+  }, [currentUser, isDemo, fetchPayments]);
 
   /**
    * Format date string for display

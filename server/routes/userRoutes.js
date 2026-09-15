@@ -16,7 +16,97 @@ const {
   normalizeIndianPhone,
 } = require("../utils/identityUtils");
 
+const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, "../uploads/avatars");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer storage configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || ".jpg";
+    const uniqueName = `avatar-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, uniqueName);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed!"), false);
+    }
+  },
+});
+
 router.use(requireFirebaseAuth);
+
+/**
+ * POST /api/users/upload-avatar
+ * Upload user profile image and store on server disk
+ */
+router.post("/upload-avatar", upload.single("avatar"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: "No image file provided" });
+    }
+
+    const relativeUrl = `/uploads/avatars/${req.file.filename}`;
+    res.json({
+      success: true,
+      url: relativeUrl,
+      message: "Avatar uploaded successfully",
+    });
+/**
+ * DELETE /api/users/avatar
+ * Remove profile photo from server disk and clear user.photoURL in MongoDB
+ */
+router.delete("/avatar", async (req, res) => {
+  try {
+    const firebaseUid = req.auth.uid;
+    const user = await User.findOne({ firebaseUid });
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    if (user.photoURL && user.photoURL.startsWith("/uploads/avatars/")) {
+      const filename = path.basename(user.photoURL);
+      const filePath = path.join(uploadsDir, filename);
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+          console.log(`🗑️ Deleted avatar file from disk: ${filePath}`);
+        } catch (e) {
+          console.warn("⚠️ Error deleting avatar file:", e.message);
+        }
+      }
+    }
+
+    user.photoURL = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Profile photo deleted successfully",
+      user,
+    });
+  } catch (error) {
+    console.error("❌ Delete avatar error:", error);
+    res.status(500).json({ success: false, error: "Failed to delete avatar" });
+  }
+});
 
 /**
  * User Routes
@@ -346,9 +436,29 @@ router.put(
         user.profile.address.full = fullAddress.trim();
       }
 
-      // Handle profile photo - support both profilePhoto and profilePicture
+      // Handle profile photo - auto-convert Base64 string to server disk file if necessary
       if (profilePhoto !== undefined || profilePicture !== undefined) {
-        user.photoURL = profilePhoto || profilePicture;
+        let photoVal = profilePhoto || profilePicture;
+
+        // Prevent storing Base64 strings in MongoDB - save to disk instead
+        if (photoVal && typeof photoVal === "string" && photoVal.startsWith("data:image/")) {
+          try {
+            const matches = photoVal.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+            if (matches) {
+              const ext = matches[1] === "jpeg" ? "jpg" : matches[1];
+              const buffer = Buffer.from(matches[2], "base64");
+              const filename = `avatar-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
+              const filePath = path.join(uploadsDir, filename);
+              fs.writeFileSync(filePath, buffer);
+              photoVal = `/uploads/avatars/${filename}`;
+              console.log(`🖼️ Converted base64 image to server disk file: ${photoVal}`);
+            }
+          } catch (convErr) {
+            console.error("⚠️ Base64 image conversion error:", convErr.message);
+          }
+        }
+
+        user.photoURL = photoVal;
       }
 
       if (gender !== undefined) {

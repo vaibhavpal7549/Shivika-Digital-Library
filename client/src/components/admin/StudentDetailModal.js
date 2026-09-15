@@ -1,4 +1,5 @@
 import React from "react";
+import { getImageUrl } from "../../utils/imageUtils";
 
 const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
   if (!student) return null;
@@ -35,7 +36,7 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
           <div className="flex items-center space-x-3">
             {student.photoURL ? (
               <img
-                src={student.photoURL}
+                src={getImageUrl(student.photoURL)}
                 alt={student.fullName}
                 className="w-12 h-12 rounded-full object-cover border-2 border-white"
               />

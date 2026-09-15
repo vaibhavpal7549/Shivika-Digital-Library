@@ -3,6 +3,8 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import toast from 'react-hot-toast';
+import apiClient from '../utils/apiClient';
+import { getImageUrl } from '../utils/imageUtils';
 import { getDaysRemaining } from '../utils/feeUtils';
 import { 
   User, 
@@ -25,6 +27,7 @@ import {
   Save,
   Loader2,
   Shield,
+  Trash2,
   Image as ImageIcon
 } from 'lucide-react';
 
@@ -155,18 +158,67 @@ export default function Profile() {
     }
   };
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      // First set preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({
           ...prev,
           profilePhoto: reader.result,
         }));
-        toast.success('Photo updated! Save to apply changes.');
       };
       reader.readAsDataURL(file);
+
+      // Upload file directly to server disk storage via /api/users/upload-avatar
+      try {
+        const uploadData = new FormData();
+        uploadData.append('avatar', file);
+
+        const res = await apiClient.post('/api/users/upload-avatar', uploadData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        if (res.data?.success && res.data.url) {
+          setFormData(prev => ({
+            ...prev,
+            profilePhoto: res.data.url,
+          }));
+          toast.success('Photo uploaded to server! Save to apply changes.');
+        }
+      } catch (err) {
+        console.warn('Direct upload warning (falling back to auto-conversion on save):', err.message);
+        toast.success('Photo selected! Save to apply changes.');
+      }
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    try {
+      setFormData((prev) => ({
+        ...prev,
+        profilePhoto: "",
+      }));
+
+      if (currentUser && !currentUser.isDemo) {
+        try {
+          await apiClient.delete("/api/users/avatar");
+        } catch (e) {
+          console.warn("Backend delete avatar warning:", e.message);
+        }
+      }
+
+      await updateProfile({
+        ...formData,
+        profilePhoto: "",
+        photoURL: "",
+      });
+
+      toast.success("Profile photo deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting photo:", err);
+      toast.success("Photo removed! Click Save to apply changes.");
     }
   };
 
@@ -263,12 +315,12 @@ export default function Profile() {
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 -mt-12 sm:-mt-16">
                 {/* Avatar & Name */}
                 <div className="flex items-end gap-4">
-                  {/* Profile Photo with Upload */}
+                  {/* Profile Photo with Upload & Delete */}
                   <div className="relative group">
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-white p-1 shadow-lg">
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-white p-1 shadow-lg relative">
                       {formData.profilePhoto ? (
                         <img
-                          src={formData.profilePhoto}
+                          src={getImageUrl(formData.profilePhoto)}
                           alt="Profile"
                           className="w-full h-full rounded-xl object-cover"
                         />
@@ -278,13 +330,26 @@ export default function Profile() {
                         </div>
                       )}
                     </div>
+
+                    {/* Delete Photo Badge Button */}
+                    {formData.profilePhoto && isEditing && (
+                      <button
+                        type="button"
+                        onClick={handleDeletePhoto}
+                        className="absolute -top-2 -right-2 bg-rose-600 hover:bg-rose-700 text-white p-2 rounded-full shadow-lg transition-all duration-200 transform hover:scale-110 z-30"
+                        title="Delete Profile Photo"
+                        aria-label="Delete Profile Photo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                     
                     {/* Photo Upload Overlay */}
                     {isEditing && (
-                      <label className="absolute inset-1 rounded-xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer flex items-center justify-center">
+                      <label className="absolute inset-1 rounded-xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer flex items-center justify-center z-20">
                         <div className="text-center text-white">
                           <Camera className="w-6 h-6 mx-auto mb-1" />
-                          <span className="text-xs font-medium">Change</span>
+                          <span className="text-xs font-medium">Change Photo</span>
                         </div>
                         <input
                           type="file"

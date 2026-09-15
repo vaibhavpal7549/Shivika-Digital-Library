@@ -245,6 +245,28 @@ export function AuthProvider({ children }) {
    * Called when user wants to logout other sessions
    */
   const forceLogoutOtherDevices = useCallback(async () => {
+    const isDemoUser =
+      isDemo ||
+      currentUser?.isDemo ||
+      sessionStorage.getItem("is_demo_mode") === "true" ||
+      sessionStorage.getItem("demo_mode") === "true" ||
+      currentUser?.uid?.startsWith("demo-");
+
+    if (isDemoUser) {
+      toast("You are in demo mode click exit demo button to go out", {
+        icon: "⚠️",
+        duration: 5000,
+        style: {
+          borderRadius: "12px",
+          background: "#1e293b",
+          color: "#fff",
+          fontWeight: "bold",
+          fontSize: "14px",
+        },
+      });
+      return false;
+    }
+
     if (!currentUser || !sessionId) {
       toast.error('No active session to manage');
       return false;
@@ -260,7 +282,7 @@ export function AuthProvider({ children }) {
       toast.error('Failed to logout other devices');
       return false;
     }
-  }, [currentUser, sessionId, createSession]);
+  }, [currentUser, sessionId, createSession, isDemo]);
 
   /**
    * Handle session invalidation (logged out by another device)
@@ -491,6 +513,28 @@ export function AuthProvider({ children }) {
    * Signs out user and clears session from database
    */
   async function logout() {
+    const isDemoUser =
+      isDemo ||
+      currentUser?.isDemo ||
+      sessionStorage.getItem("is_demo_mode") === "true" ||
+      sessionStorage.getItem("demo_mode") === "true" ||
+      currentUser?.uid?.startsWith("demo-");
+
+    if (isDemoUser) {
+      toast("You are in demo mode click exit demo button to go out", {
+        icon: "⚠️",
+        duration: 5000,
+        style: {
+          borderRadius: "12px",
+          background: "#1e293b",
+          color: "#fff",
+          fontWeight: "bold",
+          fontSize: "14px",
+        },
+      });
+      return false;
+    }
+
     try {
       // Clear session before signing out
       if (currentUser) {
@@ -518,6 +562,7 @@ export function AuthProvider({ children }) {
       setBlockReason(null);
       
       toast.success('Logged out successfully!');
+      return true;
     } catch (error) {
       toast.error(error.message);
       throw error;

@@ -74,7 +74,7 @@ import {
  */
 
 export default function Profile() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, isDemo } = useAuth();
   const { 
     profile, 
     updateProfile, 
@@ -225,10 +225,19 @@ export default function Profile() {
   };
 
   const handleLogout = async () => {
+    const isDemoUser = isDemo || currentUser?.isDemo || sessionStorage.getItem('is_demo_mode') === 'true' || sessionStorage.getItem('demo_mode') === 'true';
+    if (isDemoUser) {
+      await logout();
+      return;
+    }
     setIsLoggingOut(true);
     try {
-      await logout();
-      navigate('/');
+      const success = await logout();
+      if (success !== false) {
+        navigate('/');
+      } else {
+        setIsLoggingOut(false);
+      }
     } catch (error) {
       setIsLoggingOut(false);
     }

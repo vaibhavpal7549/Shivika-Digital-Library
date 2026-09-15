@@ -32,6 +32,7 @@ export default function Dashboard() {
   const { 
     currentUser, 
     logout, 
+    isDemo,
     activeSessionInfo, 
     forceLogoutOtherDevices,
     getSessionDuration,
@@ -156,11 +157,19 @@ export default function Dashboard() {
    * to prevent duplicate "Logged out successfully" messages.
    */
   const handleLogout = async () => {
+    const isDemoUser = isDemo || currentUser?.isDemo || sessionStorage.getItem('is_demo_mode') === 'true' || sessionStorage.getItem('demo_mode') === 'true';
+    if (isDemoUser) {
+      await logout();
+      return;
+    }
     setIsLoggingOut(true);
     try {
-      await logout();
-      // Toast handled in AuthContext.logout()
-      navigate('/');
+      const success = await logout();
+      if (success !== false) {
+        navigate('/');
+      } else {
+        setIsLoggingOut(false);
+      }
     } catch (error) {
       setIsLoggingOut(false);
       // Error handled in context

@@ -1,27 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { database } from '../firebase/config';
-import { ref, onValue } from 'firebase/database';
-import axios from 'axios';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import React, { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { database } from "../firebase/config";
+import { ref, onValue } from "firebase/database";
+import apiClient from "../utils/apiClient";
 
 /**
  * ============================================
  * PAYMENT HISTORY COMPONENT
  * ============================================
- * 
+ *
  * Displays all payment transactions for the current user.
- * 
+ *
  * DATA SOURCE: MongoDB via API (source of truth)
  * Firebase listener kept for real-time UI updates only.
- * 
+ *
  * SEAT NUMBER DISPLAY LOGIC:
  * 1. For seat_booking payments: Shows the booked seat number
  * 2. For fee_payment (no seat): Shows "N/A" or "Fee Only"
  * 3. For payments without seatNumber field: Shows "None"
- * 
+ *
  * Edge cases handled:
  * - Payment with seatNumber = null/undefined → Shows "None"
  * - Payment with seatNumber = 0 → Shows "None" (invalid seat)
@@ -38,14 +36,14 @@ export default function PaymentHistory() {
   // Fetch payments from MongoDB API (source of truth)
   const fetchPayments = useCallback(async () => {
     if (!currentUser?.uid) return;
-    
+
     try {
       setError(null);
       const [paymentsRes, statsRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/payments/user/${currentUser.uid}`),
-        axios.get(`${API_BASE_URL}/api/payments/stats/${currentUser.uid}`)
+        apiClient.get(`/api/payments/user/${currentUser.uid}`),
+        apiClient.get(`/api/payments/stats/${currentUser.uid}`),
       ]);
-      
+
       if (paymentsRes.data.success) {
         setPayments(paymentsRes.data.payments || []);
       }
@@ -53,8 +51,8 @@ export default function PaymentHistory() {
         setStats(statsRes.data.stats);
       }
     } catch (err) {
-      console.error('Error fetching payments from API:', err);
-      setError('Failed to load payment history');
+      console.error("Error fetching payments from API:", err);
+      setError("Failed to load payment history");
     } finally {
       setLoading(false);
     }
@@ -69,7 +67,7 @@ export default function PaymentHistory() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const paymentsRef = ref(database, 'payments');
+    const paymentsRef = ref(database, "payments");
     const unsubscribe = onValue(paymentsRef, () => {
       // When Firebase updates, re-fetch from MongoDB for consistency
       fetchPayments();
@@ -83,15 +81,15 @@ export default function PaymentHistory() {
    * Handles missing dates gracefully
    */
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return "N/A";
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    if (isNaN(date.getTime())) return "N/A";
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -107,25 +105,25 @@ export default function PaymentHistory() {
     if (payment.seatNumber && payment.seatNumber > 0) {
       return {
         text: `Seat ${payment.seatNumber}`,
-        className: 'bg-purple-100 text-purple-800',
-        hasIcon: true
+        className: "bg-purple-100 text-purple-800",
+        hasIcon: true,
       };
     }
-    
+
     // Check if this is a fee-only payment (no seat associated)
-    if (payment.type === 'fee_payment') {
+    if (payment.type === "fee_payment") {
       return {
-        text: 'Fee Only',
-        className: 'bg-blue-100 text-blue-800',
-        hasIcon: false
+        text: "Fee Only",
+        className: "bg-blue-100 text-blue-800",
+        hasIcon: false,
       };
     }
-    
+
     // Default: No seat associated
     return {
-      text: 'None',
-      className: 'bg-gray-100 text-gray-600',
-      hasIcon: false
+      text: "None",
+      className: "bg-gray-100 text-gray-600",
+      hasIcon: false,
     };
   };
 
@@ -135,31 +133,34 @@ export default function PaymentHistory() {
    */
   const getStatusBadge = (payment) => {
     // Check verification status first
-    if (payment.verificationStatus === 'failed') {
+    if (payment.verificationStatus === "failed") {
       return {
-        text: '✗ Failed',
-        className: 'bg-red-100 text-red-800'
+        text: "✗ Failed",
+        className: "bg-red-100 text-red-800",
       };
     }
-    
+
     // Check payment status
-    if (payment.status === 'paid' || payment.verificationStatus === 'verified') {
+    if (
+      payment.status === "paid" ||
+      payment.verificationStatus === "verified"
+    ) {
       return {
-        text: '✓ Paid',
-        className: 'bg-green-100 text-green-800'
+        text: "✓ Paid",
+        className: "bg-green-100 text-green-800",
       };
     }
-    
-    if (payment.status === 'pending') {
+
+    if (payment.status === "pending") {
       return {
-        text: '⏳ Pending',
-        className: 'bg-amber-100 text-amber-800'
+        text: "⏳ Pending",
+        className: "bg-amber-100 text-amber-800",
       };
     }
-    
+
     return {
-      text: payment.status || 'Unknown',
-      className: 'bg-gray-100 text-gray-800'
+      text: payment.status || "Unknown",
+      className: "bg-gray-100 text-gray-800",
     };
   };
 
@@ -169,26 +170,26 @@ export default function PaymentHistory() {
   const getDurationDisplay = (payment) => {
     // Get months from either 'months' or 'monthsPaidFor' field
     const months = payment.months || payment.monthsPaidFor;
-    
+
     // For seat bookings, show months and daily hours
-    if (payment.type === 'seat_booking' && months) {
+    if (payment.type === "seat_booking" && months) {
       if (payment.dailyHours) {
-        return `${months} ${months === 1 ? 'Month' : 'Months'} / ${payment.dailyHours}hr/day`;
+        return `${months} ${months === 1 ? "Month" : "Months"} / ${payment.dailyHours}hr/day`;
       }
-      return `${months} ${months === 1 ? 'Month' : 'Months'}`;
+      return `${months} ${months === 1 ? "Month" : "Months"}`;
     }
-    
+
     // For fee payments with months
     if (months) {
-      return `${months} ${months === 1 ? 'Month' : 'Months'}`;
+      return `${months} ${months === 1 ? "Month" : "Months"}`;
     }
-    
+
     // Legacy: hours field
     if (payment.hours) {
-      return `${payment.hours} ${payment.hours === 1 ? 'Hour' : 'Hours'}`;
+      return `${payment.hours} ${payment.hours === 1 ? "Hour" : "Hours"}`;
     }
-    
-    return 'N/A';
+
+    return "N/A";
   };
 
   if (loading) {
@@ -230,7 +231,9 @@ export default function PaymentHistory() {
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
                     Payment History
                   </h1>
-                  <p className="text-gray-600 mt-1 font-medium">View all your booking transactions</p>
+                  <p className="text-gray-600 mt-1 font-medium">
+                    View all your booking transactions
+                  </p>
                 </div>
               </div>
             </div>
@@ -255,8 +258,12 @@ export default function PaymentHistory() {
         {payments.length === 0 ? (
           <div className="bg-white rounded-lg shadow-lg p-12 text-center">
             <div className="text-6xl mb-4">📭</div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">No Payment History</h3>
-            <p className="text-gray-600 mb-6">You haven't made any bookings yet.</p>
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">
+              No Payment History
+            </h3>
+            <p className="text-gray-600 mb-6">
+              You haven't made any bookings yet.
+            </p>
             <Link
               to="/seats"
               className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700 transition inline-block"
@@ -272,25 +279,42 @@ export default function PaymentHistory() {
                   <tr>
                     <th className="px-6 py-4 text-left font-semibold">Date</th>
                     <th className="px-6 py-4 text-left font-semibold">Seat</th>
-                    <th className="px-6 py-4 text-left font-semibold">Duration</th>
-                    <th className="px-6 py-4 text-left font-semibold">Amount</th>
-                    <th className="px-6 py-4 text-left font-semibold">Status</th>
-                    <th className="px-6 py-4 text-left font-semibold">Payment ID</th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Duration
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Amount
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Status
+                    </th>
+                    <th className="px-6 py-4 text-left font-semibold">
+                      Payment ID
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.map((payment) => {
                     const seatDisplay = getSeatDisplay(payment);
                     const statusBadge = getStatusBadge(payment);
-                    
+
                     return (
-                      <tr key={payment.id} className="border-b hover:bg-gray-50 transition-colors">
+                      <tr
+                        key={payment.id}
+                        className="border-b hover:bg-gray-50 transition-colors"
+                      >
                         <td className="px-6 py-4 text-gray-800">
-                          {formatDate(payment.bookedAt || payment.paidAt || payment.createdAt)}
+                          {formatDate(
+                            payment.bookedAt ||
+                              payment.paidAt ||
+                              payment.createdAt,
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           {/* CONDITIONAL SEAT NUMBER DISPLAY */}
-                          <span className={`${seatDisplay.className} px-3 py-1 rounded-full font-semibold inline-flex items-center gap-1`}>
+                          <span
+                            className={`${seatDisplay.className} px-3 py-1 rounded-full font-semibold inline-flex items-center gap-1`}
+                          >
                             {seatDisplay.hasIcon && <span>🪑</span>}
                             {seatDisplay.text}
                           </span>
@@ -303,12 +327,16 @@ export default function PaymentHistory() {
                         </td>
                         <td className="px-6 py-4">
                           {/* CONDITIONAL STATUS BADGE */}
-                          <span className={`${statusBadge.className} px-3 py-1 rounded-full font-semibold`}>
+                          <span
+                            className={`${statusBadge.className} px-3 py-1 rounded-full font-semibold`}
+                          >
                             {statusBadge.text}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-gray-600 text-sm font-mono">
-                          {payment.paymentId ? `${payment.paymentId.substring(0, 20)}...` : 'N/A'}
+                          {payment.paymentId
+                            ? `${payment.paymentId.substring(0, 20)}...`
+                            : "N/A"}
                         </td>
                       </tr>
                     );
@@ -333,19 +361,26 @@ export default function PaymentHistory() {
               <div className="bg-green-50 p-4 rounded-lg">
                 <p className="text-gray-600 text-sm">Total Amount Paid</p>
                 <p className="text-2xl font-bold text-green-600">
-                  ₹{(stats?.totalAmountPaid || payments.reduce((sum, p) => sum + (p.amount || 0), 0)).toLocaleString()}
+                  ₹
+                  {(
+                    stats?.totalAmountPaid ||
+                    payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+                  ).toLocaleString()}
                 </p>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-gray-600 text-sm">Seat Bookings</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {stats?.seatPaymentsCount || payments.filter(p => p.seatNumber && p.seatNumber > 0).length}
+                  {stats?.seatPaymentsCount ||
+                    payments.filter((p) => p.seatNumber && p.seatNumber > 0)
+                      .length}
                 </p>
               </div>
               <div className="bg-amber-50 p-4 rounded-lg">
                 <p className="text-gray-600 text-sm">Fee Payments</p>
                 <p className="text-2xl font-bold text-amber-600">
-                  {stats?.feePaymentsCount || payments.filter(p => p.type === 'fee_payment').length}
+                  {stats?.feePaymentsCount ||
+                    payments.filter((p) => p.type === "fee_payment").length}
                 </p>
               </div>
             </div>
@@ -355,4 +390,3 @@ export default function PaymentHistory() {
     </div>
   );
 }
-

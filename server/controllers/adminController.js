@@ -1,11 +1,10 @@
-const { User, Seat, Payment } = require('../models');
-
+const { User, Seat, Payment } = require("../models");
 
 /**
  * ============================================
  * ADMIN CONTROLLER
  * ============================================
- * 
+ *
  * Admin operations for managing users, seats, and payments.
  * All changes sync to Google Sheets for admin dashboard.
  */
@@ -22,22 +21,22 @@ exports.getAllUsers = async (req, res) => {
       status,
       seatStatus,
       paymentStatus,
-      search
+      search,
     } = req.query;
 
-    const query = { role: { $ne: 'admin' } }; // Exclude admins
+    const query = { role: { $ne: "admin" } }; // Exclude admins
 
     // Filters
     if (status) query.status = status;
-    if (seatStatus) query['seat.seatStatus'] = seatStatus;
-    if (paymentStatus) query['payment.paymentStatus'] = paymentStatus;
+    if (seatStatus) query["seat.seatStatus"] = seatStatus;
+    if (paymentStatus) query["payment.paymentStatus"] = paymentStatus;
 
     // Search
     if (search) {
       query.$or = [
-        { fullName: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
+        { fullName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -48,22 +47,23 @@ exports.getAllUsers = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
-        .select('-password'),
-      User.countDocuments(query)
+        .select("-password"),
+      User.countDocuments(query),
     ]);
 
     // Calculate stats
     const stats = {
       total,
-      active: users.filter(u => u.hasActiveSeat).length,
-      inactive: users.filter(u => !u.hasActiveSeat).length,
-      paid: users.filter(u => u.payment.paymentStatus === 'paid').length,
-      overdue: users.filter(u => u.payment.paymentStatus === 'overdue').length
+      active: users.filter((u) => u.hasActiveSeat).length,
+      inactive: users.filter((u) => !u.hasActiveSeat).length,
+      paid: users.filter((u) => u.payment.paymentStatus === "paid").length,
+      overdue: users.filter((u) => u.payment.paymentStatus === "overdue")
+        .length,
     };
 
     res.json({
       success: true,
-      users: users.map(u => ({
+      users: users.map((u) => ({
         id: u._id,
         firebaseUid: u.firebaseUid,
         fullName: u.fullName,
@@ -75,22 +75,21 @@ exports.getAllUsers = async (req, res) => {
         daysUntilExpiry: u.daysUntilExpiry,
         isPaymentOverdue: u.isPaymentOverdue,
         status: u.status,
-        createdAt: u.createdAt
+        createdAt: u.createdAt,
       })),
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
-        pages: Math.ceil(total / parseInt(limit))
+        pages: Math.ceil(total / parseInt(limit)),
       },
-      stats
+      stats,
     });
-
   } catch (error) {
-    console.error('❌ Get all users error:', error);
+    console.error("❌ Get all users error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch users'
+      error: "Failed to fetch users",
     });
   }
 };
@@ -103,11 +102,11 @@ exports.getUserDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findById(id).select('-password');
+    const user = await User.findById(id).select("-password");
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -120,16 +119,15 @@ exports.getUserDetails = async (req, res) => {
         ...user.toObject(),
         hasActiveSeat: user.hasActiveSeat,
         daysUntilExpiry: user.daysUntilExpiry,
-        isPaymentOverdue: user.isPaymentOverdue
+        isPaymentOverdue: user.isPaymentOverdue,
       },
-      payments
+      payments,
     });
-
   } catch (error) {
-    console.error('❌ Get user details error:', error);
+    console.error("❌ Get user details error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch user details'
+      error: "Failed to fetch user details",
     });
   }
 };
@@ -151,29 +149,26 @@ exports.updateUser = async (req, res) => {
     const user = await User.findByIdAndUpdate(
       id,
       { $set: updates },
-      { new: true }
-    ).select('-password');
+      { new: true, runValidators: true },
+    ).select("-password");
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
-
-
     res.json({
       success: true,
-      message: 'User updated successfully',
-      user
+      message: "User updated successfully",
+      user,
     });
-
   } catch (error) {
-    console.error('❌ Update user error:', error);
+    console.error("❌ Update user error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update user'
+      error: "Failed to update user",
     });
   }
 };
@@ -191,7 +186,7 @@ exports.updatePaymentStatus = async (req, res) => {
       amount,
       months = 1,
       notes,
-      adminId
+      adminId,
     } = req.body;
 
     // Find user
@@ -205,7 +200,7 @@ exports.updatePaymentStatus = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -214,7 +209,7 @@ exports.updatePaymentStatus = async (req, res) => {
     // Update payment status
     user.payment.paymentStatus = paymentStatus;
 
-    if (paymentStatus === 'paid' && amount) {
+    if (paymentStatus === "paid" && amount) {
       // Add payment record
       const nextDueDate = new Date();
       nextDueDate.setMonth(nextDueDate.getMonth() + months);
@@ -227,30 +222,31 @@ exports.updatePaymentStatus = async (req, res) => {
         orderId,
         amount,
         date: new Date(),
-        paymentMode: 'cash',
-        status: 'success',
-        type: 'fee_payment',
+        paymentMode: "cash",
+        status: "success",
+        type: "fee_payment",
         monthsPaid: months,
         receiptNumber,
         collectedBy: adminId,
-        notes
+        notes,
       });
 
       user.payment.lastPaymentDate = new Date();
       user.payment.lastPaymentAmount = amount;
       user.payment.nextDueDate = nextDueDate;
-      user.payment.totalAmountPaid = (user.payment.totalAmountPaid || 0) + amount;
+      user.payment.totalAmountPaid =
+        (user.payment.totalAmountPaid || 0) + amount;
 
       // Create Payment record
       const payment = new Payment({
         userId: user._id,
         firebaseUid: user.firebaseUid,
-        type: 'fee_payment',
+        type: "fee_payment",
         orderId,
         amount,
-        paymentMode: 'cash',
-        status: 'success',
-        verificationStatus: 'verified_manual',
+        paymentMode: "cash",
+        status: "success",
+        verificationStatus: "verified_manual",
         monthsPaidFor: months,
         receiptNumber,
         seatNumber: user.seat?.seatNumber,
@@ -258,13 +254,13 @@ exports.updatePaymentStatus = async (req, res) => {
         periodEnd: nextDueDate,
         verifiedAt: new Date(),
         adminAction: {
-          actionType: 'admin_payment_update',
+          actionType: "admin_payment_update",
           actionBy: adminId,
           actionDate: new Date(),
           previousStatus,
           newStatus: paymentStatus,
-          notes
-        }
+          notes,
+        },
       });
 
       await payment.save();
@@ -279,33 +275,29 @@ exports.updatePaymentStatus = async (req, res) => {
         user.seat.expiryDate = new Date(user.seat.expiryDate);
         user.seat.expiryDate.setMonth(user.seat.expiryDate.getMonth() + months);
       }
-
-
     }
-
 
     await user.save();
 
-    console.log(`✅ Admin updated payment for ${user.fullName}: ${previousStatus} → ${paymentStatus}`);
-
-
+    console.log(
+      `✅ Admin updated payment for ${user.fullName}: ${previousStatus} → ${paymentStatus}`,
+    );
 
     res.json({
       success: true,
-      message: 'Payment status updated',
+      message: "Payment status updated",
       user: {
         id: user._id,
         fullName: user.fullName,
         payment: user.payment,
-        seat: user.seat
-      }
+        seat: user.seat,
+      },
     });
-
   } catch (error) {
-    console.error('❌ Update payment status error:', error);
+    console.error("❌ Update payment status error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update payment status'
+      error: "Failed to update payment status",
     });
   }
 };
@@ -321,7 +313,7 @@ exports.getOverdueUsers = async (req, res) => {
     res.json({
       success: true,
       count: users.length,
-      users: users.map(u => ({
+      users: users.map((u) => ({
         id: u._id,
         firebaseUid: u.firebaseUid,
         fullName: u.fullName,
@@ -329,17 +321,18 @@ exports.getOverdueUsers = async (req, res) => {
         phone: u.phone,
         seat: u.seat,
         payment: u.payment,
-        daysPastDue: u.payment.nextDueDate 
-          ? Math.floor((new Date() - u.payment.nextDueDate) / (1000 * 60 * 60 * 24))
-          : 0
-      }))
+        daysPastDue: u.payment.nextDueDate
+          ? Math.floor(
+              (new Date() - u.payment.nextDueDate) / (1000 * 60 * 60 * 24),
+            )
+          : 0,
+      })),
     });
-
   } catch (error) {
-    console.error('❌ Get overdue users error:', error);
+    console.error("❌ Get overdue users error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch overdue users'
+      error: "Failed to fetch overdue users",
     });
   }
 };
@@ -357,7 +350,7 @@ exports.getExpiringSeats = async (req, res) => {
       success: true,
       count: users.length,
       days,
-      users: users.map(u => ({
+      users: users.map((u) => ({
         id: u._id,
         firebaseUid: u.firebaseUid,
         fullName: u.fullName,
@@ -365,15 +358,14 @@ exports.getExpiringSeats = async (req, res) => {
         phone: u.phone,
         seat: u.seat,
         payment: u.payment,
-        daysUntilExpiry: u.daysUntilExpiry
-      }))
+        daysUntilExpiry: u.daysUntilExpiry,
+      })),
     });
-
   } catch (error) {
-    console.error('❌ Get expiring seats error:', error);
+    console.error("❌ Get expiring seats error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch expiring seats'
+      error: "Failed to fetch expiring seats",
     });
   }
 };
@@ -384,13 +376,13 @@ exports.getExpiringSeats = async (req, res) => {
  */
 exports.forceReleaseSeat = async (req, res) => {
   try {
-    const { seatNumber, adminId, reason = 'admin_action' } = req.body;
+    const { seatNumber, adminId, reason = "admin_action" } = req.body;
 
     const seatNum = parseInt(seatNumber);
     if (isNaN(seatNum)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid seat number'
+        error: "Invalid seat number",
       });
     }
 
@@ -398,20 +390,20 @@ exports.forceReleaseSeat = async (req, res) => {
     if (!seat) {
       return res.status(404).json({
         success: false,
-        error: 'Seat not found'
+        error: "Seat not found",
       });
     }
 
     if (!seat.isBooked) {
       return res.status(400).json({
         success: false,
-        error: 'Seat is not booked'
+        error: "Seat is not booked",
       });
     }
 
     // Find user
     const user = await User.findOne({ firebaseUid: seat.bookedByFirebaseUid });
-    
+
     // Release seat
     await seat.release(`${reason}_by_admin`);
 
@@ -420,33 +412,30 @@ exports.forceReleaseSeat = async (req, res) => {
       await user.releaseSeat();
 
       await user.save();
-
-
     }
 
     console.log(`✅ Admin released seat ${seatNum} (${reason})`);
 
     // Emit socket event
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     if (io) {
-      io.emit('seat:released', {
+      io.emit("seat:released", {
         seatNumber: seatNum,
-        reason: 'admin_action',
-        adminId
+        reason: "admin_action",
+        adminId,
       });
     }
 
     res.json({
       success: true,
-      message: 'Seat released successfully',
-      seatNumber: seatNum
+      message: "Seat released successfully",
+      seatNumber: seatNum,
     });
-
   } catch (error) {
-    console.error('❌ Force release seat error:', error);
+    console.error("❌ Force release seat error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to release seat'
+      error: "Failed to release seat",
     });
   }
 };
@@ -460,9 +449,9 @@ exports.assignSeat = async (req, res) => {
     const {
       firebaseUid,
       seatNumber,
-      shift = 'fullday',
+      shift = "fullday",
       months = 1,
-      adminId
+      adminId,
     } = req.body;
 
     // Find user
@@ -470,7 +459,7 @@ exports.assignSeat = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -478,7 +467,7 @@ exports.assignSeat = async (req, res) => {
     if (isNaN(seatNum) || seatNum < 1 || seatNum > 100) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid seat number'
+        error: "Invalid seat number",
       });
     }
 
@@ -486,8 +475,8 @@ exports.assignSeat = async (req, res) => {
     if (user.hasActiveSeat) {
       return res.status(400).json({
         success: false,
-        error: 'User already has an active seat',
-        currentSeat: user.seat.seatNumber
+        error: "User already has an active seat",
+        currentSeat: user.seat.seatNumber,
       });
     }
 
@@ -496,7 +485,8 @@ exports.assignSeat = async (req, res) => {
     if (!seat) {
       seat = new Seat({
         seatNumber: seatNum,
-        zone: seatNum <= 15 ? 'A' : seatNum <= 30 ? 'B' : seatNum <= 45 ? 'C' : 'D'
+        zone:
+          seatNum <= 15 ? "A" : seatNum <= 30 ? "B" : seatNum <= 45 ? "C" : "D",
       });
     }
 
@@ -504,7 +494,7 @@ exports.assignSeat = async (req, res) => {
     if (seat.isBooked && !seat.isExpired) {
       return res.status(400).json({
         success: false,
-        error: 'Seat is already booked'
+        error: "Seat is already booked",
       });
     }
 
@@ -517,11 +507,11 @@ exports.assignSeat = async (req, res) => {
     // Update user
     user.seat = {
       seatNumber: seatNum,
-      seatStatus: 'active',
-      libraryName: 'Shivika Digital Library',
+      seatStatus: "active",
+      libraryName: "Shivika Digital Library",
       shift,
       bookingDate: new Date(),
-      expiryDate
+      expiryDate,
     };
 
     user.payment.nextDueDate = expiryDate;
@@ -530,34 +520,31 @@ exports.assignSeat = async (req, res) => {
 
     console.log(`✅ Admin assigned seat ${seatNum} to ${user.fullName}`);
 
-
-
     // Emit socket event
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     if (io) {
-      io.emit('seat:booked', {
+      io.emit("seat:booked", {
         seatNumber: seatNum,
         userId: firebaseUid,
         userName: user.fullName,
-        adminAssigned: true
+        adminAssigned: true,
       });
     }
 
     res.json({
       success: true,
-      message: 'Seat assigned successfully',
+      message: "Seat assigned successfully",
       user: {
         id: user._id,
         fullName: user.fullName,
-        seat: user.seat
-      }
+        seat: user.seat,
+      },
     });
-
   } catch (error) {
-    console.error('❌ Assign seat error:', error);
+    console.error("❌ Assign seat error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to assign seat'
+      error: "Failed to assign seat",
     });
   }
 };
@@ -576,27 +563,27 @@ exports.getDashboardStats = async (req, res) => {
       overdueUsers,
       expiringIn7Days,
       todayPayments,
-      monthRevenue
+      monthRevenue,
     ] = await Promise.all([
-      User.countDocuments({ role: { $ne: 'admin' } }),
+      User.countDocuments({ role: { $ne: "admin" } }),
       Seat.countDocuments({ isBooked: true }),
       Seat.countDocuments({ isBooked: false }),
-      User.countDocuments({ 'payment.paymentStatus': 'paid' }),
-      User.countDocuments({ 'payment.paymentStatus': 'overdue' }),
+      User.countDocuments({ "payment.paymentStatus": "paid" }),
+      User.countDocuments({ "payment.paymentStatus": "overdue" }),
       User.countDocuments({
-        'seat.expiryDate': {
+        "seat.expiryDate": {
           $gt: new Date(),
-          $lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-        }
+          $lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
       }),
       Payment.countDocuments({
         createdAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-        status: 'success'
+        status: "success",
       }),
       Payment.getTotalRevenue(
         new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-        new Date()
-      )
+        new Date(),
+      ),
     ]);
 
     res.json({
@@ -605,31 +592,28 @@ exports.getDashboardStats = async (req, res) => {
         users: {
           total: totalUsers,
           paid: paidUsers,
-          overdue: overdueUsers
+          overdue: overdueUsers,
         },
         seats: {
           active: activeSeats,
           available: availableSeats,
           total: activeSeats + availableSeats,
-          expiringIn7Days
+          expiringIn7Days,
         },
         payments: {
           todayCount: todayPayments,
-          monthRevenue
-        }
-      }
+          monthRevenue,
+        },
+      },
     });
-
   } catch (error) {
-    console.error('❌ Get dashboard stats error:', error);
+    console.error("❌ Get dashboard stats error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch statistics'
+      error: "Failed to fetch statistics",
     });
   }
 };
-
-
 
 /**
  * DELETE /admin/user/:id
@@ -643,7 +627,7 @@ exports.deleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -651,29 +635,26 @@ exports.deleteUser = async (req, res) => {
     if (user.seat?.seatNumber) {
       const seat = await Seat.findOne({ seatNumber: user.seat.seatNumber });
       if (seat) {
-        await seat.release('user_deleted');
+        await seat.release("user_deleted");
       }
     }
 
     // Soft delete
-    user.status = 'deleted';
+    user.status = "deleted";
     user.deletedAt = new Date();
     await user.save();
-
-
 
     console.log(`✅ User deleted: ${user.fullName}`);
 
     res.json({
       success: true,
-      message: 'User deleted successfully'
+      message: "User deleted successfully",
     });
-
   } catch (error) {
-    console.error('❌ Delete user error:', error);
+    console.error("❌ Delete user error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to delete user'
+      error: "Failed to delete user",
     });
   }
 };

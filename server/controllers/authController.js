@@ -1,11 +1,12 @@
-const { User, Seat, Payment } = require('../models');
+const { User, Seat, Payment } = require("../models");
+const { validateAndNormalizeIdentity } = require("../utils/identityUtils");
 // const googleSheetsService = require('../services/googleSheetsService');
 
 /**
  * ============================================
  * AUTH CONTROLLER
  * ============================================
- * 
+ *
  * Handles user authentication and registration.
  * Firebase handles actual auth, this manages MongoDB user records.
  */
@@ -41,21 +42,51 @@ exports.signup = async (req, res) => {
       });
     }
 
-    if (!email) {
+    if (!email || !email.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Email is required'
       });
     }
 
-    if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
+    // Validate email format
+    const emailRegex = /^\S+@\S+\.\S+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please enter a valid email address'
+      });
+    }
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Phone number is required'
+      });
+    }
+
+    // Normalize phone: strip +91, leading 0, spaces, dashes
+    let normalizedPhone = phone.replace(/[\s\-().]/g, '');
+    if (normalizedPhone.startsWith('+91')) {
+      normalizedPhone = normalizedPhone.substring(3);
+    } else if (normalizedPhone.startsWith('91') && normalizedPhone.length === 12) {
+      normalizedPhone = normalizedPhone.substring(2);
+    } else if (normalizedPhone.startsWith('0') && normalizedPhone.length === 11) {
+      normalizedPhone = normalizedPhone.substring(1);
+    }
+    normalizedPhone = normalizedPhone.trim();
+
+    if (!/^[6-9]\d{9}$/.test(normalizedPhone)) {
       return res.status(400).json({
         success: false,
         error: 'Valid 10-digit Indian phone number is required'
       });
     }
 
-    // Check if user already exists
+    // Normalize email
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if user already exists by firebaseUid
     let user = await User.findOne({ firebaseUid });
     if (user) {
       // Update last login and return existing user
@@ -70,20 +101,30 @@ exports.signup = async (req, res) => {
       });
     }
 
-    // Check for duplicate email or phone
-    const existingEmail = await User.findOne({ email: email.toLowerCase() });
+    // Check BOTH email and phone uniqueness simultaneously
+    const [existingEmail, existingPhone] = await Promise.all([
+      User.findOne({ email: normalizedEmail }),
+      User.findOne({ phone: normalizedPhone })
+    ]);
+
+    const errors = [];
     if (existingEmail) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email already registered'
-      });
+      errors.push('This email address is already registered with another user.');
+    }
+    if (existingPhone) {
+      errors.push('This phone number is already registered with another user.');
     }
 
-    const existingPhone = await User.findOne({ phone });
-    if (existingPhone) {
+    if (errors.length === 2) {
       return res.status(400).json({
         success: false,
-        error: 'Phone number already registered'
+        error: 'Both phone number and email address are already registered.',
+        details: errors
+      });
+    } else if (errors.length === 1) {
+      return res.status(400).json({
+        success: false,
+        error: errors[0]
       });
     }
 
@@ -91,8 +132,8 @@ exports.signup = async (req, res) => {
     user = new User({
       firebaseUid,
       fullName: fullName.trim(),
-      email: email.toLowerCase().trim(),
-      phone: phone.trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
       photoURL,
       provider,
       profile: {
@@ -108,7 +149,7 @@ exports.signup = async (req, res) => {
     });
 
     await user.save();
-    console.log(`✅ New user registered: ${email}`);
+    console.log(`✅ New user registered: ${normalizedEmail}`);
 
     // Sync to Google Sheets (background, don't block response)
     // googleSheetsService.syncUser(user).catch(err => {
@@ -133,11 +174,20 @@ exports.signup = async (req, res) => {
       });
     }
 
+    // Handle duplicate key error (race condition safety net)
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
+      let message = 'This credential is already registered.';
+      if (field === 'phone') {
+        message = 'This phone number is already registered with another user.';
+      } else if (field === 'email') {
+        message = 'This email address is already registered with another user.';
+      } else if (field === 'firebaseUid') {
+        message = 'This account is already registered.';
+      }
       return res.status(400).json({
         success: false,
-        error: `${field} already exists`
+        error: message
       });
     }
 
@@ -148,7 +198,6 @@ exports.signup = async (req, res) => {
   }
 };
 
-
 /**
  * POST /auth/login
  * Update last login and return user data
@@ -157,40 +206,44 @@ exports.login = async (req, res) => {
   try {
     const { firebaseUid, email, fullName, photoURL } = req.body;
 
-    console.log('🔵 Login attempt:', {
-      firebaseUid: firebaseUid ? `${firebaseUid.substring(0, 10)}...` : 'missing',
+    console.log("🔵 Login attempt:", {
+      firebaseUid: firebaseUid
+        ? `${firebaseUid.substring(0, 10)}...`
+        : "missing",
       email,
-      fullName
+      fullName,
     });
 
     if (!firebaseUid) {
-      console.error('❌ Login failed: No Firebase UID provided');
+      console.error("❌ Login failed: No Firebase UID provided");
       return res.status(400).json({
         success: false,
-        error: 'Firebase UID is required'
+        error: "Firebase UID is required",
       });
     }
 
     const user = await User.findOne({ firebaseUid });
-    
+
     if (!user) {
-      console.log(`ℹ️ User not found in MongoDB for UID: ${firebaseUid.substring(0, 10)}...`);
-      console.log('ℹ️ This user needs to complete registration');
-      
+      console.log(
+        `ℹ️ User not found in MongoDB for UID: ${firebaseUid.substring(0, 10)}...`,
+      );
+      console.log("ℹ️ This user needs to complete registration");
+
       return res.status(404).json({
         success: false,
-        error: 'User not found',
-        needsRegistration: true
+        error: "User not found",
+        needsRegistration: true,
       });
     }
 
     console.log(`✅ User found: ${user.fullName} (${user.email})`);
-    console.log(`   - Has phone: ${user.phone ? 'Yes' : 'No'}`);
-    console.log(`   - Profile complete: ${user.phone ? 'Yes' : 'No'}`);
+    console.log(`   - Has phone: ${user.phone ? "Yes" : "No"}`);
+    console.log(`   - Profile complete: ${user.phone ? "Yes" : "No"}`);
 
-    // Update user details from login payload (Sync Google Data)
+    // Update user details from login payload
     let updates = { lastLogin: new Date() };
-    
+
     // Only update fields if they are provided and different
     if (email && user.email !== email) {
       console.log(`   - Updating email: ${user.email} → ${email}`);
@@ -213,15 +266,14 @@ exports.login = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Login successful',
-      user
+      message: "Login successful",
+      user,
     });
-
   } catch (error) {
-    console.error('❌ Login error:', error);
+    console.error("❌ Login error:", error);
     res.status(500).json({
       success: false,
-      error: 'Login failed'
+      error: "Login failed",
     });
   }
 };
@@ -232,10 +284,10 @@ exports.login = async (req, res) => {
  */
 exports.getUser = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.firebaseUid || req.params.id;
 
     let user;
-    
+
     // Check if it's a MongoDB ObjectId or Firebase UID
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
       user = await User.findById(id);
@@ -246,20 +298,19 @@ exports.getUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
     res.json({
       success: true,
-      user
+      user,
     });
-
   } catch (error) {
-    console.error('❌ Get user error:', error);
+    console.error("❌ Get user error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch user'
+      error: "Failed to fetch user",
     });
   }
 };
@@ -270,13 +321,11 @@ exports.getUser = async (req, res) => {
  */
 exports.updateUser = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.firebaseUid || req.params.id;
     const updates = req.body;
 
     // Fields that can be updated
-    const allowedUpdates = [
-      'fullName', 'phone', 'photoURL', 'profile'
-    ];
+    const allowedUpdates = ["fullName", "phone", "photoURL", "profile"];
 
     // Filter updates
     const filteredUpdates = {};
@@ -296,7 +345,7 @@ exports.updateUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -317,15 +366,14 @@ exports.updateUser = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Profile updated',
-      user
+      message: "Profile updated",
+      user,
     });
-
   } catch (error) {
-    console.error('❌ Update user error:', error);
+    console.error("❌ Update user error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update user'
+      error: "Failed to update user",
     });
   }
 };

@@ -1,12 +1,12 @@
-const { User, Seat, Payment } = require('../models');
-const { syncSeatToFirebase } = require('../services/firebaseSyncService');
+const { User, Seat, Payment } = require("../models");
+const { syncSeatToFirebase } = require("../services/firebaseSyncService");
 // const googleSheetsService = require('../services/googleSheetsService');
 
 /**
  * ============================================
  * SEAT CONTROLLER
  * ============================================
- * 
+ *
  * Handles all seat booking operations.
  * Enforces one-seat-per-user rule.
  * Syncs to Google Sheets on changes.
@@ -28,7 +28,7 @@ exports.getAllSeats = async (req, res) => {
 
     // Format for frontend
     const seatsMap = {};
-    seats.forEach(seat => {
+    seats.forEach((seat) => {
       seatsMap[seat.seatNumber] = {
         seatNumber: seat.seatNumber,
         isBooked: seat.isBooked,
@@ -37,7 +37,7 @@ exports.getAllSeats = async (req, res) => {
         shift: seat.shift,
         zone: seat.zone,
         bookedBy: seat.bookedBy,
-        expiryDate: seat.expiryDate
+        expiryDate: seat.expiryDate,
       };
     });
 
@@ -45,14 +45,13 @@ exports.getAllSeats = async (req, res) => {
       success: true,
       count: seats.length,
       seats: seatsMap,
-      seatsArray: seats
+      seatsArray: seats,
     });
-
   } catch (error) {
-    console.error('❌ Get seats error:', error);
+    console.error("❌ Get seats error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch seats'
+      error: "Failed to fetch seats",
     });
   }
 };
@@ -68,14 +67,13 @@ exports.getAvailableSeats = async (req, res) => {
     res.json({
       success: true,
       count: seats.length,
-      seats
+      seats,
     });
-
   } catch (error) {
-    console.error('❌ Get available seats error:', error);
+    console.error("❌ Get available seats error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch available seats'
+      error: "Failed to fetch available seats",
     });
   }
 };
@@ -91,7 +89,7 @@ exports.getSeat = async (req, res) => {
     if (isNaN(seatNumber) || seatNumber < 1 || seatNumber > 100) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid seat number'
+        error: "Invalid seat number",
       });
     }
 
@@ -100,21 +98,20 @@ exports.getSeat = async (req, res) => {
     if (!seat) {
       return res.status(404).json({
         success: false,
-        error: 'Seat not found'
+        error: "Seat not found",
       });
     }
 
     res.json({
       success: true,
-      seat
+      seat,
     });
-
   } catch (error) {
-    console.error('❌ Get seat error:', error);
-    console.error('Error details:', error.message);
+    console.error("❌ Get seat error:", error);
+    console.error("Error details:", error.message);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch seat'
+      error: "Failed to fetch seat",
     });
   }
 };
@@ -122,7 +119,7 @@ exports.getSeat = async (req, res) => {
 /**
  * POST /seat/book
  * Book a seat for user (after payment)
- * 
+ *
  * BUSINESS RULES:
  * - One user can only have one active seat
  * - Seat must be available
@@ -133,16 +130,16 @@ exports.bookSeat = async (req, res) => {
     const {
       firebaseUid,
       seatNumber,
-      shift = 'fullday',
+      shift = "fullday",
       months = 1,
-      paymentId // Optional: link to payment record
+      paymentId, // Optional: link to payment record
     } = req.body;
 
     // Validation
     if (!firebaseUid) {
       return res.status(400).json({
         success: false,
-        error: 'User ID is required'
+        error: "User ID is required",
       });
     }
 
@@ -150,7 +147,7 @@ exports.bookSeat = async (req, res) => {
     if (isNaN(seatNum) || seatNum < 1 || seatNum > 100) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid seat number'
+        error: "Invalid seat number",
       });
     }
 
@@ -159,7 +156,7 @@ exports.bookSeat = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -167,19 +164,20 @@ exports.bookSeat = async (req, res) => {
     if (user.hasActiveSeat) {
       return res.status(400).json({
         success: false,
-        error: 'You already have an active seat booking',
-        currentSeat: user.seat.seatNumber
+        error: "You already have an active seat booking",
+        currentSeat: user.seat.seatNumber,
       });
     }
 
     // Find seat
     let seat = await Seat.findOne({ seatNumber: seatNum });
-    
+
     // Create seat if it doesn't exist
     if (!seat) {
       seat = new Seat({
         seatNumber: seatNum,
-        zone: seatNum <= 15 ? 'A' : seatNum <= 30 ? 'B' : seatNum <= 45 ? 'C' : 'D'
+        zone:
+          seatNum <= 15 ? "A" : seatNum <= 30 ? "B" : seatNum <= 45 ? "C" : "D",
       });
     }
 
@@ -187,7 +185,7 @@ exports.bookSeat = async (req, res) => {
     if (seat.isBooked && !seat.isExpired) {
       return res.status(400).json({
         success: false,
-        error: 'Seat is already booked'
+        error: "Seat is already booked",
       });
     }
 
@@ -205,16 +203,16 @@ exports.bookSeat = async (req, res) => {
     // Update user's seat info
     user.seat = {
       seatNumber: seatNum,
-      seatStatus: 'active',
-      libraryName: 'Shivika Digital Library',
+      seatStatus: "active",
+      libraryName: "Shivika Digital Library",
       shift,
       bookingDate,
-      expiryDate
+      expiryDate,
     };
 
     // Update user's payment info
-    user.payment.currentPlan = 'monthly';
-    user.payment.paymentStatus = 'paid';
+    user.payment.currentPlan = "monthly";
+    user.payment.paymentStatus = "paid";
     user.payment.nextDueDate = nextDueDate;
 
     // Mark for sheets sync (REMOVED)
@@ -239,38 +237,37 @@ exports.bookSeat = async (req, res) => {
     // });
 
     // Emit socket event for real-time UI update
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     if (io) {
-      io.emit('seat:booked', {
+      io.emit("seat:booked", {
         seatNumber: seatNum,
         userId: firebaseUid,
         userName: user.fullName,
         shift,
-        expiryDate
+        expiryDate,
       });
     }
 
     res.json({
       success: true,
-      message: 'Seat booked successfully',
+      message: "Seat booked successfully",
       seat: {
         seatNumber: seatNum,
         shift,
         bookingDate,
-        expiryDate
+        expiryDate,
       },
       user: {
         id: user._id,
         fullName: user.fullName,
-        seat: user.seat
-      }
+        seat: user.seat,
+      },
     });
-
   } catch (error) {
-    console.error('❌ Book seat error:', error);
+    console.error("❌ Book seat error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to book seat'
+      error: "Failed to book seat",
     });
   }
 };
@@ -281,14 +278,14 @@ exports.bookSeat = async (req, res) => {
  */
 exports.releaseSeat = async (req, res) => {
   try {
-    const { firebaseUid, seatNumber, reason = 'manual' } = req.body;
+    const { firebaseUid, seatNumber, reason = "manual" } = req.body;
 
     // Find user
     const user = await User.findOne({ firebaseUid });
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -296,7 +293,7 @@ exports.releaseSeat = async (req, res) => {
     if (!seatNum) {
       return res.status(400).json({
         success: false,
-        error: 'No seat to release'
+        error: "No seat to release",
       });
     }
 
@@ -305,7 +302,7 @@ exports.releaseSeat = async (req, res) => {
     if (!seat) {
       return res.status(404).json({
         success: false,
-        error: 'Seat not found'
+        error: "Seat not found",
       });
     }
 
@@ -313,7 +310,7 @@ exports.releaseSeat = async (req, res) => {
     if (seat.bookedByFirebaseUid !== firebaseUid) {
       return res.status(403).json({
         success: false,
-        error: 'You can only release your own seat'
+        error: "You can only release your own seat",
       });
     }
 
@@ -334,26 +331,25 @@ exports.releaseSeat = async (req, res) => {
     // });
 
     // Emit socket event
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     if (io) {
-      io.emit('seat:released', {
+      io.emit("seat:released", {
         seatNumber: seatNum,
         userId: firebaseUid,
-        reason
+        reason,
       });
     }
 
     res.json({
       success: true,
-      message: 'Seat released successfully',
-      seatNumber: seatNum
+      message: "Seat released successfully",
+      seatNumber: seatNum,
     });
-
   } catch (error) {
-    console.error('❌ Release seat error:', error);
+    console.error("❌ Release seat error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to release seat'
+      error: "Failed to release seat",
     });
   }
 };
@@ -371,7 +367,7 @@ exports.changeSeat = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -379,7 +375,7 @@ exports.changeSeat = async (req, res) => {
     if (!oldSeatNumber) {
       return res.status(400).json({
         success: false,
-        error: 'No current seat to change from'
+        error: "No current seat to change from",
       });
     }
 
@@ -387,29 +383,34 @@ exports.changeSeat = async (req, res) => {
     if (isNaN(newSeatNum) || newSeatNum < 1 || newSeatNum > 100) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid new seat number'
+        error: "Invalid new seat number",
       });
     }
 
     if (oldSeatNumber === newSeatNum) {
       return res.status(400).json({
         success: false,
-        error: 'Cannot change to the same seat'
+        error: "Cannot change to the same seat",
       });
     }
+
+    const oldSeat = await Seat.findOne({
+      seatNumber: oldSeatNumber,
+      bookedByFirebaseUid: firebaseUid,
+    });
 
     // Check if new seat is available
     let newSeat = await Seat.findOne({ seatNumber: newSeatNum });
     if (newSeat && newSeat.isBooked && !newSeat.isExpired) {
       return res.status(400).json({
         success: false,
-        error: 'New seat is not available'
+        error: "New seat is not available",
       });
     }
 
     // Release old seat
     if (oldSeat) {
-      await oldSeat.release('user_request');
+      await oldSeat.release("user_request");
       await syncSeatToFirebase(oldSeat);
     }
 
@@ -421,32 +422,39 @@ exports.changeSeat = async (req, res) => {
     if (!newSeat) {
       newSeat = new Seat({
         seatNumber: newSeatNum,
-        zone: newSeatNum <= 15 ? 'A' : newSeatNum <= 30 ? 'B' : newSeatNum <= 45 ? 'C' : 'D'
+        zone:
+          newSeatNum <= 15
+            ? "A"
+            : newSeatNum <= 30
+              ? "B"
+              : newSeatNum <= 45
+                ? "C"
+                : "D",
       });
     }
 
-    const newShift = shift || user.seat.shift || 'fullday';
+    const newShift = shift || user.seat.shift || "fullday";
     await newSeat.book(user, newShift, months);
 
     // Update user's seat info (keep expiry date)
     const oldExpiry = user.seat.expiryDate;
     user.seat = {
       seatNumber: newSeatNum,
-      seatStatus: 'active',
-      libraryName: 'Shivika Digital Library',
+      seatStatus: "active",
+      libraryName: "Shivika Digital Library",
       shift: newShift,
       bookingDate: new Date(),
-      expiryDate: oldExpiry // Keep original expiry
+      expiryDate: oldExpiry, // Keep original expiry
     };
-
-    await user.save();
 
     await user.save();
 
     // Sync new seat to Firebase
     await syncSeatToFirebase(newSeat);
 
-    console.log(`✅ ${user.fullName} changed from seat ${oldSeatNumber} to ${newSeatNum}`);
+    console.log(
+      `✅ ${user.fullName} changed from seat ${oldSeatNumber} to ${newSeatNum}`,
+    );
 
     // Sync to Google Sheets
     // googleSheetsService.syncUser(user).catch(err => {
@@ -454,32 +462,31 @@ exports.changeSeat = async (req, res) => {
     // });
 
     // Emit socket events
-    const io = req.app.get('io');
+    const io = req.app.get("io");
     if (io) {
-      io.emit('seat:changed', {
+      io.emit("seat:changed", {
         oldSeatNumber,
         newSeatNumber: newSeatNum,
         userId: firebaseUid,
-        userName: user.fullName
+        userName: user.fullName,
       });
     }
 
     res.json({
       success: true,
-      message: 'Seat changed successfully',
+      message: "Seat changed successfully",
       oldSeat: oldSeatNumber,
       newSeat: {
         seatNumber: newSeatNum,
         shift: newShift,
-        expiryDate: oldExpiry
-      }
+        expiryDate: oldExpiry,
+      },
     });
-
   } catch (error) {
-    console.error('❌ Change seat error:', error);
+    console.error("❌ Change seat error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to change seat'
+      error: "Failed to change seat",
     });
   }
 };
@@ -496,7 +503,7 @@ exports.getUserSeat = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: 'User not found'
+        error: "User not found",
       });
     }
 
@@ -504,7 +511,7 @@ exports.getUserSeat = async (req, res) => {
       return res.json({
         success: true,
         hasSeat: false,
-        seat: null
+        seat: null,
       });
     }
 
@@ -513,14 +520,13 @@ exports.getUserSeat = async (req, res) => {
       hasSeat: true,
       seat: user.seat,
       isExpiring: user.daysUntilExpiry !== null && user.daysUntilExpiry <= 7,
-      daysUntilExpiry: user.daysUntilExpiry
+      daysUntilExpiry: user.daysUntilExpiry,
     });
-
   } catch (error) {
-    console.error('❌ Get user seat error:', error);
+    console.error("❌ Get user seat error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch user seat'
+      error: "Failed to fetch user seat",
     });
   }
 };
@@ -538,14 +544,13 @@ exports.getExpiringSeats = async (req, res) => {
       success: true,
       count: seats.length,
       days,
-      seats
+      seats,
     });
-
   } catch (error) {
-    console.error('❌ Get expiring seats error:', error);
+    console.error("❌ Get expiring seats error:", error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch expiring seats'
+      error: "Failed to fetch expiring seats",
     });
   }
 };

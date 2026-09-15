@@ -16,7 +16,7 @@ Check out the live version of the project:
 
 - 🪑 **60 Seats Layout** - Visual library-style seat arrangement
 - 🟢 **Real-Time Status** - Live seat updates (Green = Booked, Red blinking = Vacant)
-- 🔐 **Multi-Authentication** - Google, Phone (OTP), Email/Password
+- 🔐 **Authentication** - Email/Password, Phone
 - 💳 **Payment Integration** - Razorpay payment gateway
 - ⚡ **Live Synchronization** - Firebase Realtime Database
 - 📍 **Google Maps** - Library location embed
@@ -60,7 +60,6 @@ npm run install-all
 2. Create a new project
 3. Enable Authentication:
    - Email/Password
-   - Google
    - Phone
 4. Create Realtime Database
 5. Copy your Firebase config
@@ -162,7 +161,7 @@ library-seat-booking/
 ## 🎯 Pages & Routes
 
 - `/` - Home page
-- `/login` - Authentication (Email/Phone/Google)
+- `/login` - Authentication (Email/Password)
 - `/dashboard` - Student dashboard with seat status & fee calculator
 - `/seats` - Real-time seat layout viewer
 - `/booking/:seatNumber` - Booking & payment page
@@ -223,3 +222,5 @@ For development, use:
 Made with ❤️ for efficient library seat management
 
 # Shivika-Digital-Library
+
+

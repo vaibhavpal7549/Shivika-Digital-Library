@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProfileProvider, useProfile } from './contexts/ProfileContext';
 import { UserProvider, useUser } from './contexts/UserContext';
@@ -16,41 +16,63 @@ import PaymentHistory from './pages/PaymentHistory';
 import FeePayment from './pages/FeePayment';
 import Gallery from './pages/Gallery';
 import AdminPanel from './pages/AdminPanel';
+import DemoBanner from './components/DemoBanner';
 import './App.css';
 import './responsive.css';
 import './modern-ui.css';
 
 // Protected Route Component - Requires both auth and MongoDB registration
 const ProtectedRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, isDemo } = useAuth();
   const { isProfileComplete, loading: profileLoading } = useProfile();
   const { userData, loading: userLoading, needsRegistration } = useUser();
   
-  if (loading || profileLoading || userLoading) {
+  if (loading || (!isDemo && (profileLoading || userLoading))) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+        <div className="text-xl font-medium text-gray-600">Loading...</div>
       </div>
     );
   }
   
-  if (!currentUser) {
+  if (!currentUser && !isDemo) {
     return <Navigate to="/login" />;
   }
 
   // If user is authenticated but not registered in MongoDB, redirect to signup
-  if (needsRegistration) {
+  if (needsRegistration && !isDemo) {
     return <Navigate to="/signup" state={{ 
       needsProfileCompletion: true, 
       firebaseUser: {
-        uid: currentUser.uid,
-        email: currentUser.email,
-        displayName: currentUser.displayName,
-        photoURL: currentUser.photoURL
+        uid: currentUser?.uid,
+        email: currentUser?.email,
+        displayName: currentUser?.displayName,
+        photoURL: currentUser?.photoURL
       }
     }} />;
   }
   
+  return children;
+};
+
+// Admin Route Component - Strictly requires admin role on server-synced user object
+const AdminRoute = ({ children }) => {
+  const { isDemo } = useAuth();
+  const { userData, loading } = useUser();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl font-medium text-gray-600">Verifying Admin Access...</div>
+      </div>
+    );
+  }
+
+  if (isDemo || userData?.role !== 'admin') {
+    toast.error('🔒 Access Restricted: Admin permissions required.');
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return children;
 };
 
@@ -62,6 +84,7 @@ function App() {
           <SocketProvider>
             <Router>
               <div className="App">
+                <DemoBanner />
                 <Toaster position="top-right" />
                 <Routes>
                   <Route path="/" element={<Home />} />
@@ -127,7 +150,9 @@ function App() {
                     path="/admin" 
                     element={
                       <ProtectedRoute>
-                        <AdminPanel />
+                        <AdminRoute>
+                          <AdminPanel />
+                        </AdminRoute>
                       </ProtectedRoute>
                     } 
                   />

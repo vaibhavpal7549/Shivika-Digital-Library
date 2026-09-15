@@ -2,12 +2,10 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
-  signInWithPopup,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
 import { auth, database } from '../firebase/config';
-import { GoogleAuthProvider } from 'firebase/auth';
 import { ref, set, get, onValue, remove, serverTimestamp, runTransaction } from 'firebase/database';
 import toast from 'react-hot-toast';
 
@@ -81,6 +79,13 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(() => {
+    try {
+      return sessionStorage.getItem('is_demo_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
   // Initialize sessionId from sessionStorage if present
   const [sessionId, setSessionId] = useState(() => {
     try {
@@ -354,6 +359,18 @@ export function AuthProvider({ children }) {
   // AUTH STATE OBSERVER
   // ============================================
   useEffect(() => {
+    if (isDemo) {
+      setCurrentUser({
+        uid: 'demo-user-uid',
+        email: 'demo@shivikalibrary.com',
+        displayName: 'Demo Explorer',
+        photoURL: null,
+        isDemo: true,
+      });
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUser(user);
@@ -439,57 +456,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  /**
-   * Google Sign In
-   * Authenticates with Google and creates new session
-   * Returns the userCredential for further processing
-   */
-  async function signInWithGoogle() {
-    try {
-      console.log('🔵 Starting Google Sign-In...');
-      // Clear any blocked state from previous attempts
-      setSessionBlocked(false);
-      setBlockReason(null);
-      
-      const provider = new GoogleAuthProvider();
-      // Add custom parameters if needed
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
 
-      console.log('🔵 Opening popup...');
-      const userCredential = await signInWithPopup(auth, provider);
-      console.log('✅ Google Auth successful:', userCredential.user.uid);
-      setCurrentUser(userCredential.user);
-      
-      // Create new session (this invalidates any existing session - single session enforcement)
-      try {
-        console.log('🔵 Creating session...');
-        await createSession(userCredential.user.uid);
-        console.log('✅ Session created successfully');
-      } catch (sessionError) {
-        console.warn('⚠️ Non-fatal session error on Google sign-in:', sessionError);
-      }
-      
-      // Return userCredential for MongoDB registration check
-      return userCredential;
-    } catch (error) {
-      console.error('❌ Google Sign-In Error:', error);
-      console.error('Error Code:', error.code);
-      console.error('Error Message:', error.message);
-      
-      if (error.code === 'auth/popup-closed-by-user') {
-        toast.error('Sign-in cancelled');
-      } else if (error.code === 'auth/popup-blocked') {
-        toast.error('Popup blocked. Please allow popups for this site.');
-      } else if (error.code === 'auth/network-request-failed') {
-        toast.error('Network error. Please check your connection.');
-      } else {
-        toast.error(`Google Sign-In failed: ${error.message}`);
-      }
-      throw error;
-    }
-  }
 
   /**
    * Logout
@@ -529,6 +496,45 @@ export function AuthProvider({ children }) {
     }
   }
 
+  /**
+   * Enter Demo Mode
+   */
+  const enterDemoMode = useCallback(() => {
+    setIsDemo(true);
+    try {
+      sessionStorage.setItem('is_demo_mode', 'true');
+    } catch (e) {
+      console.warn('Could not save demo state to sessionStorage:', e);
+    }
+    setCurrentUser({
+      uid: 'demo-user-uid',
+      email: 'demo@shivikalibrary.com',
+      displayName: 'Demo Explorer',
+      photoURL: null,
+      isDemo: true,
+    });
+    toast.success('Welcome to Demo Mode!');
+  }, []);
+
+  /**
+   * Exit Demo Mode
+   */
+  const exitDemoMode = useCallback(async () => {
+    setIsDemo(false);
+    try {
+      sessionStorage.removeItem('is_demo_mode');
+    } catch (e) {
+      console.warn('Could not remove demo state from sessionStorage:', e);
+    }
+    setCurrentUser(null);
+    try {
+      await signOut(auth);
+    } catch (e) {
+      // Ignored
+    }
+    toast.success('Exited Demo Mode');
+  }, []);
+
   // ============================================
   // CONTEXT VALUE
   // ============================================
@@ -536,12 +542,14 @@ export function AuthProvider({ children }) {
     // User state
     currentUser,
     loading,
+    isDemo,
     
     // Auth functions
     signup,
     login,
-    signInWithGoogle,
     logout,
+    enterDemoMode,
+    exitDemoMode,
     
     // Session management
     sessionId,

@@ -1,6 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { adminController } = require('../controllers');
+const { adminController } = require("../controllers");
+const {
+  requireFirebaseAuth,
+  requireAdmin,
+} = require("../middleware/authMiddleware");
+
+router.use(requireFirebaseAuth, requireAdmin);
 
 /**
  * ============================================
@@ -23,35 +29,33 @@ const { adminController } = require('../controllers');
  */
 
 // Get all users
-router.get('/users', adminController.getAllUsers);
+router.get("/users", adminController.getAllUsers);
 
 // Get dashboard stats
-router.get('/stats', adminController.getDashboardStats);
+router.get("/stats", adminController.getDashboardStats);
 
 // Get users with overdue payments
-router.get('/overdue', adminController.getOverdueUsers);
+router.get("/overdue", adminController.getOverdueUsers);
 
 // Get users with expiring seats
-router.get('/expiring', adminController.getExpiringSeats);
+router.get("/expiring", adminController.getExpiringSeats);
 
 // Get single user details
-router.get('/user/:id', adminController.getUserDetails);
+router.get("/user/:id", adminController.getUserDetails);
 
 // Update user
-router.put('/user/:id', adminController.updateUser);
+router.put("/user/:id", adminController.updateUser);
 
 // Delete user
-router.delete('/user/:id', adminController.deleteUser);
+router.delete("/user/:id", adminController.deleteUser);
 
 // Update payment status
-router.put('/payment/update', adminController.updatePaymentStatus);
+router.put("/payment/update", adminController.updatePaymentStatus);
 
 // Force release seat
-router.post('/seat/release', adminController.forceReleaseSeat);
+router.post("/seat/release", adminController.forceReleaseSeat);
 
 // Assign seat to user
-router.post('/seat/assign', adminController.assignSeat);
-
-
+router.post("/seat/assign", adminController.assignSeat);
 
 module.exports = router;

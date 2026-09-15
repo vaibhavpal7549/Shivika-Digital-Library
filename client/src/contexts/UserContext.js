@@ -1,30 +1,78 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { useAuth } from './AuthContext';
-import toast from 'react-hot-toast';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import apiClient from "../utils/apiClient";
+import { useAuth } from "./AuthContext";
+import toast from "react-hot-toast";
 
 /**
  * UserContext
- * 
+ *
  * This context manages user data from MongoDB.
  * It serves as the SINGLE SOURCE OF TRUTH for user information.
- * 
+ *
  * Firebase Auth handles authentication (login/logout).
  * MongoDB (via this context) handles user data storage.
  */
 
-const UserContext = createContext();
+const DEMO_USER_DATA = {
+  _id: "demo-user-id",
+  firebaseUid: "demo-user-uid",
+  fullName: "Demo Explorer",
+  email: "demo@shivikalibrary.com",
+  phone: "9876543210",
+  role: "demo",
+  hasActiveSeat: true,
+  seat: {
+    seatNumber: 12,
+    seatStatus: "active",
+    libraryName: "Shivika Digital Library",
+    shift: "morning",
+    bookingDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    expiryDate: new Date(Date.now() + 23 * 24 * 60 * 60 * 1000).toISOString(),
+    months: 1,
+  },
+  payment: {
+    currentPlan: "monthly",
+    monthlyFee: 1500,
+    totalPaid: 1500,
+    paymentStatus: "paid",
+    nextDueDate: new Date(Date.now() + 23 * 24 * 60 * 60 * 1000).toISOString(),
+    lastPaymentDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  paymentHistory: [
+    {
+      _id: "demo-pay-1",
+      transactionId: "pay_demo_rzp_123456",
+      amount: 1500,
+      paymentMode: "Razorpay",
+      paymentDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      monthsPaidFor: 1,
+      status: "success",
+    },
+  ],
+  profile: {
+    gender: "male",
+    studentId: "SDL-DEMO-2026",
+    collegeName: "Central University of Technology",
+    fatherName: "Rajesh Sharma",
+    address: { full: "123 Knowledge Avenue, Education Hub, New Delhi - 110001" },
+  },
+};
 
-// Get API URL from environment or default
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const UserContext = createContext();
 
 export function useUser() {
   return useContext(UserContext);
 }
 
 export function UserProvider({ children }) {
-  const { currentUser, loading: authLoading } = useAuth();
-  
+  const { currentUser, loading: authLoading, isDemo } = useAuth();
+
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,6 +82,12 @@ export function UserProvider({ children }) {
    * Fetch user data from MongoDB
    */
   const fetchUserData = useCallback(async (firebaseUid) => {
+    if (isDemo) {
+      setUserData(DEMO_USER_DATA);
+      setLoading(false);
+      return DEMO_USER_DATA;
+    }
+
     if (!firebaseUid) {
       setUserData(null);
       setLoading(false);
@@ -43,18 +97,21 @@ export function UserProvider({ children }) {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await axios.get(`${API_URL}/api/users/${firebaseUid}`);
-      
+
+      const response = await apiClient.get(`/api/users/${firebaseUid}`);
+
       if (response.data.success) {
         setUserData(response.data.user);
         setNeedsRegistration(false);
         return response.data.user;
       }
     } catch (err) {
-      console.error('Error fetching user data:', err);
-      
-      if (err.response?.status === 404 && err.response?.data?.needsRegistration) {
+      console.error("Error fetching user data:", err);
+
+      if (
+        err.response?.status === 404 &&
+        err.response?.data?.needsRegistration
+      ) {
         setNeedsRegistration(true);
         setUserData(null);
       } else {
@@ -63,7 +120,7 @@ export function UserProvider({ children }) {
     } finally {
       setLoading(false);
     }
-    
+
     return null;
   }, []);
 
@@ -73,109 +130,118 @@ export function UserProvider({ children }) {
   /**
    * Register user in MongoDB
    */
-  const registerUser = useCallback(async (registrationData, explicitUser = null) => {
-    const userToRegister = explicitUser || currentUser;
-    
-    if (!userToRegister) {
-      throw new Error('No authenticated user');
-    }
+  const registerUser = useCallback(
+    async (registrationData, explicitUser = null) => {
+      const userToRegister = explicitUser || currentUser;
 
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await axios.post(`${API_URL}/api/users/register`, {
-        firebaseUid: userToRegister.uid,
-        ...registrationData
-      });
-
-      if (response.data.success) {
-        setUserData(response.data.user);
-        setNeedsRegistration(false);
-        return response.data;
-      } else {
-        throw new Error(response.data.error || 'Registration failed');
+      if (!userToRegister) {
+        throw new Error("No authenticated user");
       }
-    } catch (err) {
-      console.error('Error registering user:', err);
-      setError(err.response?.data?.error || err.message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [currentUser]);
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await apiClient.post("/api/users/register", {
+          firebaseUid: userToRegister.uid,
+          ...registrationData,
+        });
+
+        if (response.data.success) {
+          setUserData(response.data.user);
+          setNeedsRegistration(false);
+          return response.data;
+        } else {
+          throw new Error(response.data.error || "Registration failed");
+        }
+      } catch (err) {
+        console.error("Error registering user:", err);
+        setError(err.response?.data?.error || err.message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentUser],
+  );
 
   /**
    * Update user profile in MongoDB
    */
-  const updateProfile = useCallback(async (updateData) => {
-    if (!currentUser || !userData) {
-      throw new Error('No user to update');
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await axios.put(
-        `${API_URL}/api/users/${currentUser.uid}`,
-        updateData
-      );
-
-      if (response.data.success) {
-        setUserData(response.data.user);
-        toast.success('Profile updated successfully!');
-        return response.data.user;
-      } else {
-        throw new Error(response.data.error || 'Update failed');
+  const updateProfile = useCallback(
+    async (updateData) => {
+      if (!currentUser || !userData) {
+        throw new Error("No user to update");
       }
-    } catch (err) {
-      console.error('Error updating profile:', err);
-      toast.error(err.response?.data?.error || 'Failed to update profile');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [currentUser, userData]);
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await apiClient.put(
+          `/api/users/${currentUser.uid}`,
+          updateData,
+        );
+
+        if (response.data.success) {
+          setUserData(response.data.user);
+          toast.success("Profile updated successfully!");
+          return response.data.user;
+        } else {
+          throw new Error(response.data.error || "Update failed");
+        }
+      } catch (err) {
+        console.error("Error updating profile:", err);
+        toast.error(err.response?.data?.error || "Failed to update profile");
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentUser, userData],
+  );
 
   /**
    * Update user's seat in MongoDB
    */
-  const updateSeat = useCallback(async (seatData) => {
-    if (!currentUser) {
-      throw new Error('No authenticated user');
-    }
-
-    try {
-      const response = await axios.put(
-        `${API_URL}/api/users/${currentUser.uid}/seat`,
-        seatData
-      );
-
-      if (response.data.success) {
-        setUserData(response.data.user);
-        return response.data.user;
-      } else {
-        throw new Error(response.data.error || 'Failed to update seat');
+  const updateSeat = useCallback(
+    async (seatData) => {
+      if (!currentUser) {
+        throw new Error("No authenticated user");
       }
-    } catch (err) {
-      console.error('Error updating seat:', err);
-      throw err;
-    }
-  }, [currentUser]);
+
+      try {
+        const response = await apiClient.put(
+          `/api/users/${currentUser.uid}/seat`,
+          seatData,
+        );
+
+        if (response.data.success) {
+          setUserData(response.data.user);
+          return response.data.user;
+        } else {
+          throw new Error(response.data.error || "Failed to update seat");
+        }
+      } catch (err) {
+        console.error("Error updating seat:", err);
+        throw err;
+      }
+    },
+    [currentUser],
+  );
 
   /**
    * Clear user's seat in MongoDB
    */
   const clearSeat = useCallback(async () => {
     if (!currentUser) {
-      throw new Error('No authenticated user');
+      throw new Error("No authenticated user");
     }
 
     try {
       // Try using the new seat release API first
-      const response = await axios.post(`${API_URL}/api/seats/release`, {
-        firebaseUid: currentUser.uid
+      const response = await apiClient.post("/api/seats/release", {
+        firebaseUid: currentUser.uid,
       });
 
       if (response.data.success) {
@@ -183,12 +249,12 @@ export function UserProvider({ children }) {
         return response.data.user;
       }
     } catch (err) {
-      console.warn('Seat release API failed, trying fallback:', err);
-      
+      console.warn("Seat release API failed, trying fallback:", err);
+
       // Fallback to user route
       try {
-        const fallbackResponse = await axios.delete(
-          `${API_URL}/api/users/${currentUser.uid}/seat`
+        const fallbackResponse = await apiClient.delete(
+          `/api/users/${currentUser.uid}/seat`,
         );
 
         if (fallbackResponse.data.success) {
@@ -196,12 +262,12 @@ export function UserProvider({ children }) {
           return fallbackResponse.data.user;
         }
       } catch (fallbackErr) {
-        console.error('Error clearing seat:', fallbackErr);
+        console.error("Error clearing seat:", fallbackErr);
         throw fallbackErr;
       }
     }
-    
-    throw new Error('Failed to clear seat');
+
+    throw new Error("Failed to clear seat");
   }, [currentUser]);
 
   /**
@@ -210,12 +276,12 @@ export function UserProvider({ children }) {
    */
   const syncSeatData = useCallback(async () => {
     if (!currentUser) {
-      throw new Error('No authenticated user');
+      throw new Error("No authenticated user");
     }
 
     try {
-      const response = await axios.post(`${API_URL}/api/seats/sync`, {
-        firebaseUid: currentUser.uid
+      const response = await apiClient.post("/api/seats/sync", {
+        firebaseUid: currentUser.uid,
       });
 
       if (response.data.success) {
@@ -226,11 +292,11 @@ export function UserProvider({ children }) {
           message: response.data.message,
           seat: response.data.seat,
           source: response.data.source,
-          user: updatedUser
+          user: updatedUser,
         };
       }
     } catch (err) {
-      console.error('Error syncing seat data:', err);
+      console.error("Error syncing seat data:", err);
       throw err;
     }
   }, [currentUser, fetchUserData]);
@@ -244,17 +310,17 @@ export function UserProvider({ children }) {
     }
 
     try {
-      const response = await axios.get(
-        `${API_URL}/api/seats/check-user/${currentUser.uid}`
+      const response = await apiClient.get(
+        `/api/seats/check-user/${currentUser.uid}`,
       );
 
       return {
         hasBookedSeat: response.data.hasBookedSeat,
         seatNumber: response.data.seatNumber,
-        message: response.data.message
+        message: response.data.message,
       };
     } catch (err) {
-      console.error('Error checking user seat:', err);
+      console.error("Error checking user seat:", err);
       return { hasBookedSeat: false, seatNumber: null };
     }
   }, [currentUser]);
@@ -262,28 +328,33 @@ export function UserProvider({ children }) {
   /**
    * Update payment status in MongoDB
    */
-  const updatePaymentStatus = useCallback(async (paymentStatus) => {
-    if (!currentUser) {
-      throw new Error('No authenticated user');
-    }
-
-    try {
-      const response = await axios.put(
-        `${API_URL}/api/users/${currentUser.uid}/payment-status`,
-        { paymentStatus }
-      );
-
-      if (response.data.success) {
-        setUserData(response.data.user);
-        return response.data.user;
-      } else {
-        throw new Error(response.data.error || 'Failed to update payment status');
+  const updatePaymentStatus = useCallback(
+    async (paymentStatus) => {
+      if (!currentUser) {
+        throw new Error("No authenticated user");
       }
-    } catch (err) {
-      console.error('Error updating payment status:', err);
-      throw err;
-    }
-  }, [currentUser]);
+
+      try {
+        const response = await apiClient.put(
+          `/api/users/${currentUser.uid}/payment-status`,
+          { paymentStatus },
+        );
+
+        if (response.data.success) {
+          setUserData(response.data.user);
+          return response.data.user;
+        } else {
+          throw new Error(
+            response.data.error || "Failed to update payment status",
+          );
+        }
+      } catch (err) {
+        console.error("Error updating payment status:", err);
+        throw err;
+      }
+    },
+    [currentUser],
+  );
 
   /**
    * Refresh user data from MongoDB
@@ -295,9 +366,13 @@ export function UserProvider({ children }) {
     return null;
   }, [currentUser, fetchUserData]);
 
-  // Fetch user data when Firebase auth state changes
+  // Fetch user data when Firebase auth state changes or in Demo mode
   useEffect(() => {
-    if (!authLoading) {
+    if (isDemo) {
+      setUserData(DEMO_USER_DATA);
+      setNeedsRegistration(false);
+      setLoading(false);
+    } else if (!authLoading) {
       if (currentUser) {
         fetchUserData(currentUser.uid);
       } else {
@@ -306,7 +381,7 @@ export function UserProvider({ children }) {
         setLoading(false);
       }
     }
-  }, [currentUser, authLoading, fetchUserData]);
+  }, [currentUser, authLoading, isDemo, fetchUserData]);
 
   const value = {
     // User data
@@ -314,16 +389,16 @@ export function UserProvider({ children }) {
     loading: loading || authLoading,
     error,
     needsRegistration,
-    
+
     // User info helpers (from MongoDB)
-    userName: userData?.name || currentUser?.displayName || 'User',
-    userEmail: userData?.email || currentUser?.email || '',
-    userPhone: userData?.phone || '',
-    userRole: userData?.role || 'student',
+    userName: userData?.name || currentUser?.displayName || "User",
+    userEmail: userData?.email || currentUser?.email || "",
+    userPhone: userData?.phone || "",
+    userRole: userData?.role || "student",
     userSeat: userData?.seat || null,
-    paymentStatus: userData?.paymentStatus || 'PENDING',
+    paymentStatus: userData?.paymentStatus || "PENDING",
     hasActiveSeat: userData?.hasActiveSeat || false,
-    
+
     // Actions
     registerUser,
     updateProfile,
@@ -336,9 +411,5 @@ export function UserProvider({ children }) {
     checkUserSeat,
   };
 
-  return (
-    <UserContext.Provider value={value}>
-      {children}
-    </UserContext.Provider>
-  );
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }

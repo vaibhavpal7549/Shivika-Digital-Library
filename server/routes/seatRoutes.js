@@ -1,12 +1,16 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { seatController } = require('../controllers');
+const { seatController } = require("../controllers");
+const {
+  requireFirebaseAuth,
+  requireUidMatch,
+} = require("../middleware/authMiddleware");
 
 /**
  * ============================================
  * SEAT ROUTES
  * ============================================
- * 
+ *
  * GET  /seat/all              - Get all seats
  * GET  /seat/available        - Get available seats
  * GET  /seat/:seatNumber      - Get seat details
@@ -18,27 +22,47 @@ const { seatController } = require('../controllers');
  */
 
 // Get all seats
-router.get('/all', seatController.getAllSeats);
+router.get("/all", seatController.getAllSeats);
 
 // Get available seats
-router.get('/available', seatController.getAvailableSeats);
+router.get("/available", seatController.getAvailableSeats);
 
 // Get expiring seats
-router.get('/expiring', seatController.getExpiringSeats);
+router.get("/expiring", seatController.getExpiringSeats);
 
 // Get user's seat
-router.get('/user/:firebaseUid', seatController.getUserSeat);
+router.get(
+  "/user/:firebaseUid",
+  requireFirebaseAuth,
+  requireUidMatch({ paramField: "firebaseUid" }),
+  seatController.getUserSeat,
+);
 
 // Get specific seat
-router.get('/:seatNumber', seatController.getSeat);
+router.get("/:seatNumber", seatController.getSeat);
 
 // Book a seat
-router.post('/book', seatController.bookSeat);
+router.post(
+  "/book",
+  requireFirebaseAuth,
+  requireUidMatch({ bodyField: "firebaseUid" }),
+  seatController.bookSeat,
+);
 
 // Release a seat
-router.post('/release', seatController.releaseSeat);
+router.post(
+  "/release",
+  requireFirebaseAuth,
+  requireUidMatch({ bodyField: "firebaseUid" }),
+  seatController.releaseSeat,
+);
 
 // Change seat
-router.post('/change', seatController.changeSeat);
+router.post(
+  "/change",
+  requireFirebaseAuth,
+  requireUidMatch({ bodyField: "firebaseUid" }),
+  seatController.changeSeat,
+);
 
 module.exports = router;

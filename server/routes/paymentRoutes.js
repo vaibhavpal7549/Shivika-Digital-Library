@@ -1,12 +1,17 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { paymentController } = require('../controllers');
+const { paymentController } = require("../controllers");
+const {
+  requireFirebaseAuth,
+  requireUidMatch,
+  requireAdmin,
+} = require("../middleware/authMiddleware");
 
 /**
  * ============================================
  * PAYMENT ROUTES
  * ============================================
- * 
+ *
  * POST /payment/create-order  - Create Razorpay order
  * POST /payment/verify        - Verify payment
  * POST /payment/manual        - Record manual payment (admin)
@@ -17,27 +22,52 @@ const { paymentController } = require('../controllers');
  */
 
 // Create Razorpay order
-router.post('/create-order', paymentController.createOrder);
+router.post(
+  "/create-order",
+  requireFirebaseAuth,
+  requireUidMatch({ bodyField: "firebaseUid" }),
+  paymentController.createOrder,
+);
 
 // Verify payment
-router.post('/verify', paymentController.verifyPayment);
+router.post(
+  "/verify",
+  requireFirebaseAuth,
+  requireUidMatch({ bodyField: "firebaseUid" }),
+  paymentController.verifyPayment,
+);
 
 // Record manual payment (admin)
-router.post('/manual', paymentController.recordManualPayment);
+router.post(
+  "/manual",
+  requireFirebaseAuth,
+  requireAdmin,
+  paymentController.recordManualPayment,
+);
 
 // Razorpay webhook
-router.post('/webhook', paymentController.webhook);
+router.post("/webhook", paymentController.webhook);
 
 // Get fee structure
-router.get('/fees', paymentController.getFeeStructure);
+router.get("/fees", paymentController.getFeeStructure);
 
 // Get user's payment statistics
-router.get('/stats/:firebaseUid', paymentController.getUserStats);
+router.get(
+  "/stats/:firebaseUid",
+  requireFirebaseAuth,
+  requireUidMatch({ paramField: "firebaseUid" }),
+  paymentController.getUserStats,
+);
 
 // Get user's payments
-router.get('/user/:firebaseUid', paymentController.getUserPayments);
+router.get(
+  "/user/:firebaseUid",
+  requireFirebaseAuth,
+  requireUidMatch({ paramField: "firebaseUid" }),
+  paymentController.getUserPayments,
+);
 
 // Get payment by order ID
-router.get('/:orderId', paymentController.getPayment);
+router.get("/:orderId", paymentController.getPayment);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 import React from "react";
+import { getImageUrl } from "../../utils/imageUtils";
 
 const StudentTable = ({
   type = "current", // "current" or "past"
@@ -143,8 +144,25 @@ const StudentTable = ({
 
                 {/* Student Name */}
                 <td className="px-3 py-2.5 border-r border-gray-200 dark:border-gray-700 font-semibold text-gray-900 dark:text-white">
-                  <div className="flex items-center space-x-2">
-                    <span>{student.fullName}</span>
+                  <div className="flex items-center space-x-2.5">
+                    {student.photoURL ? (
+                      <img
+                        src={getImageUrl(student.photoURL)}
+                        alt={student.fullName}
+                        className="w-7 h-7 rounded-full object-cover border border-purple-300 dark:border-purple-600 cursor-pointer hover:scale-110 transition shadow-sm flex-shrink-0"
+                        onClick={() => onViewDetails && onViewDetails(student)}
+                        title="Click to view student details & photo"
+                      />
+                    ) : (
+                      <div
+                        className="w-7 h-7 rounded-full bg-purple-500 text-white font-bold flex items-center justify-center text-xs cursor-pointer hover:scale-110 transition shadow-sm flex-shrink-0"
+                        onClick={() => onViewDetails && onViewDetails(student)}
+                        title="Click to view student details"
+                      >
+                        {student.fullName?.charAt(0) || "S"}
+                      </div>
+                    )}
+                    <span className="truncate">{student.fullName}</span>
                   </div>
                 </td>
 

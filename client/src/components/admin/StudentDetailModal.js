@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { getImageUrl } from "../../utils/imageUtils";
 
 const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+
   if (!student) return null;
 
   const profile = student.profile || {};
@@ -34,19 +36,37 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-purple-700 to-indigo-800 text-white">
           <div className="flex items-center space-x-3">
-            {student.photoURL ? (
-              <img
-                src={getImageUrl(student.photoURL)}
-                alt={student.fullName}
-                className="w-12 h-12 rounded-full object-cover border-2 border-white"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center font-bold text-xl text-white border-2 border-white">
-                {student.fullName?.charAt(0) || "S"}
-              </div>
-            )}
+            <button
+              onClick={() => setShowPhotoModal(true)}
+              className="relative group focus:outline-none"
+              title="Click to expand profile photo"
+            >
+              {student.photoURL ? (
+                <img
+                  src={getImageUrl(student.photoURL)}
+                  alt={student.fullName}
+                  className="w-13 h-13 rounded-full object-cover border-2 border-white shadow-md group-hover:scale-105 group-hover:ring-2 group-hover:ring-purple-300 transition duration-200"
+                />
+              ) : (
+                <div className="w-13 h-13 rounded-full bg-purple-500 flex items-center justify-center font-bold text-xl text-white border-2 border-white shadow-md group-hover:scale-105 transition duration-200">
+                  {student.fullName?.charAt(0) || "S"}
+                </div>
+              )}
+              <span className="absolute bottom-0 right-0 bg-black/60 text-white text-[9px] px-1 py-0.5 rounded-full font-bold opacity-0 group-hover:opacity-100 transition">
+                🔍
+              </span>
+            </button>
             <div>
-              <h2 className="text-xl font-bold">{student.fullName}</h2>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-xl font-bold">{student.fullName}</h2>
+                <button
+                  onClick={() => setShowPhotoModal(true)}
+                  className="text-xs bg-purple-600 hover:bg-purple-500 text-purple-100 px-2 py-0.5 rounded-full transition flex items-center space-x-1"
+                  title="View enlarged profile photo"
+                >
+                  <span>📷 Photo</span>
+                </button>
+              </div>
               <p className="text-xs text-purple-200">
                 ID: {profile.studentId || student._id} | {student.email}
               </p>
@@ -111,6 +131,16 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
                 <span className="font-semibold">
                   {profile.address?.full || profile.address?.street || "N/A"}
                 </span>
+              </div>
+              <div className="sm:col-span-2 md:col-span-3 pt-2 border-t border-gray-200 dark:border-gray-600 flex items-center justify-between">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Profile Photo</span>
+                <button
+                  type="button"
+                  onClick={() => setShowPhotoModal(true)}
+                  className="px-3 py-1 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5"
+                >
+                  <span>🖼️ View Profile Photo Popup</span>
+                </button>
               </div>
             </div>
           </div>
@@ -280,6 +310,68 @@ const StudentDetailModal = ({ student, onClose, onPaymentUpdate }) => {
           </button>
         </div>
       </div>
+
+      {/* Enlarged Profile Photo Popup Modal */}
+      {showPhotoModal && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setShowPhotoModal(false)}
+        >
+          <div
+            className="relative bg-white dark:bg-gray-900 rounded-2xl p-6 max-w-md w-full border border-gray-200 dark:border-gray-700 shadow-2xl flex flex-col items-center text-center space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowPhotoModal(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 dark:hover:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full w-8 h-8 flex items-center justify-center font-bold transition text-sm"
+              title="Close photo preview"
+            >
+              ✕
+            </button>
+
+            <div className="w-full text-left border-b pb-3 dark:border-gray-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">{student.fullName}</h3>
+              <p className="text-xs text-purple-600 dark:text-purple-400 font-mono mt-0.5">
+                ID: {profile.studentId || student._id || "N/A"}
+              </p>
+            </div>
+
+            <div className="w-full flex justify-center items-center bg-gray-50 dark:bg-gray-800/60 p-4 rounded-xl border border-gray-100 dark:border-gray-800 min-h-[260px]">
+              {student.photoURL ? (
+                <img
+                  src={getImageUrl(student.photoURL)}
+                  alt={student.fullName}
+                  className="max-h-[60vh] max-w-full rounded-xl object-contain shadow-lg border border-gray-200 dark:border-gray-700"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 px-4 text-gray-400">
+                  <div className="w-28 h-28 rounded-full bg-purple-600 flex items-center justify-center font-bold text-4xl text-white shadow-lg mb-3">
+                    {student.fullName?.charAt(0) || "S"}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    No Custom Profile Photo
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    This student is using the default initial avatar.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between w-full pt-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {student.photoURL ? "Uploaded Profile Picture" : "Default Avatar"}
+              </span>
+              <button
+                onClick={() => setShowPhotoModal(false)}
+                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow transition"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

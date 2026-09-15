@@ -170,17 +170,35 @@ export function ProfileProvider({ children }) {
     return () => unsubscribe();
   }, [currentUser, fetchBookedSeat]);
 
+  const getMissingFields = useCallback(() => {
+    const missing = [];
+    const photo = profile?.profilePhoto || profile?.photoURL;
+    if (!photo) missing.push({ key: "profilePhoto", label: "Profile Photo", icon: "📸" });
+
+    const fullName = profile?.fullName;
+    if (!fullName) missing.push({ key: "fullName", label: "Full Name", icon: "👤" });
+
+    const fatherName = profile?.fatherName || profile?.profile?.fatherName;
+    if (!fatherName) missing.push({ key: "fatherName", label: "Father's Name", icon: "👨‍👦" });
+
+    const dateOfBirth = profile?.dateOfBirth || profile?.profile?.dateOfBirth;
+    if (!dateOfBirth) missing.push({ key: "dateOfBirth", label: "Date of Birth", icon: "📅" });
+
+    const phoneNumber = profile?.phoneNumber || profile?.phone;
+    if (!phoneNumber) missing.push({ key: "phoneNumber", label: "Mobile Number", icon: "📞" });
+
+    const gender = profile?.gender || profile?.profile?.gender;
+    if (!gender) missing.push({ key: "gender", label: "Gender", icon: "⚧" });
+
+    const fullAddress = profile?.fullAddress || profile?.profile?.address?.full;
+    if (!fullAddress) missing.push({ key: "fullAddress", label: "Full Address", icon: "🏠" });
+
+    return missing;
+  }, [profile]);
+
   const isProfileComplete = () => {
     if (!profile) return false;
-    return !!(
-      profile.profilePhoto &&
-      profile.fullName &&
-      profile.fatherName &&
-      profile.dateOfBirth &&
-      profile.email &&
-      profile.phoneNumber &&
-      profile.fullAddress
-    );
+    return getMissingFields().length === 0;
   };
 
   const updateProfile = async (profileData) => {
@@ -265,6 +283,7 @@ export function ProfileProvider({ children }) {
     profile,
     loading,
     isProfileComplete: isProfileComplete(),
+    getMissingFields,
     updateProfile,
 
     // Fee status

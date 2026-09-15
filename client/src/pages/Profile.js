@@ -78,12 +78,21 @@ export default function Profile() {
     updateProfile, 
     feeStatus, 
     hasPendingDues,
-    // Booked seat data from ProfileContext (single source of truth)
     bookedSeat,
     bookedSeatLoading,
-    hasBookedSeat
+    hasBookedSeat,
+    getMissingFields
   } = useProfile();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const missingFields = getMissingFields ? getMissingFields() : [];
+
+  useEffect(() => {
+    if (location.state?.missingFields || location.state?.highlightPhoto || missingFields.length > 0) {
+      setIsEditing(true);
+    }
+  }, [location.state, missingFields.length]);
   
   const [formData, setFormData] = useState({
     profilePhoto: '',
@@ -211,31 +220,33 @@ export default function Profile() {
         <div className="max-w-5xl mx-auto space-y-6 page-enter">
 
           {/* ============================================ */}
-          {/* PROFILE PHOTO MANDATORY ALERT BANNER */}
+          {/* PROFILE INCOMPLETE ALERT BANNER */}
           {/* ============================================ */}
-          {(!formData.profilePhoto || location.state?.highlightPhoto) && profile?.role !== 'admin' && (
-            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-sm animate-pulse flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          {missingFields.length > 0 && profile?.role !== 'admin' && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col gap-3 animate-fadeIn">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-200 text-amber-800 rounded-xl flex items-center justify-center text-xl font-bold flex-shrink-0">
-                  📸
+                <div className="w-10 h-10 bg-red-100 text-red-700 rounded-xl flex items-center justify-center text-xl font-bold flex-shrink-0">
+                  ⚠️
                 </div>
                 <div>
-                  <h3 className="font-bold text-amber-900 text-sm sm:text-base">
-                    Profile Photo Required for Seat Booking
+                  <h3 className="font-bold text-red-900 text-sm sm:text-base">
+                    Profile Incomplete for Seat Booking ({missingFields.length} {missingFields.length === 1 ? 'Detail' : 'Details'} Missing)
                   </h3>
-                  <p className="text-amber-700 text-xs sm:text-sm mt-0.5">
-                    Seat book karne se pehle profile photo upload karna mandatory hai. Kripya niche <strong>"Edit Profile"</strong> button par click karke photo upload karein.
+                  <p className="text-red-700 text-xs sm:text-sm mt-0.5">
+                    Please complete the following missing profile details below and click <strong>"Save Changes"</strong> before proceeding to seat booking:
                   </p>
                 </div>
               </div>
-              {!isEditing && (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-4 py-2 rounded-xl text-xs sm:text-sm whitespace-nowrap shadow transition active:scale-95"
-                >
-                  Upload Photo Now
-                </button>
-              )}
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-3 border-t border-red-200/80">
+                {missingFields.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-red-200 text-red-800 text-xs sm:text-sm font-semibold shadow-xs">
+                    <span className="text-base">{item.icon}</span>
+                    <span>{item.label}</span>
+                    <span className="ml-auto text-[11px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase">Pending</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

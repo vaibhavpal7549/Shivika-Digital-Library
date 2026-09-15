@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
+import { useUser } from '../contexts/UserContext';
 import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import toast from 'react-hot-toast';
@@ -20,7 +21,7 @@ import toast from 'react-hot-toast';
 export default function SeatLayout({ seats }) {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { isProfileComplete, hasPendingDues, bookedSeat, hasBookedSeat } = useProfile();
+  const { isProfileComplete, hasPendingDues, bookedSeat, hasBookedSeat, getMissingFields } = useProfile();
   const { userData } = useUser();
   const [userSeatNumber, setUserSeatNumber] = useState(null);
   const totalSeats = 60;
@@ -55,25 +56,14 @@ export default function SeatLayout({ seats }) {
   const handleSeatClick = (seatNumber) => {
     const status = getSeatStatus(seatNumber);
     
-    // Profile incomplete check
-    if (!isProfileComplete) {
-      toast.error('Please complete your profile before booking a seat');
-      navigate('/profile');
-      return;
-    }
-
-    // MANDATORY REQUIREMENT: Profile Photo check for Student Role
-    const hasPhoto = Boolean(
-      userData?.photoURL ||
-        userData?.profilePhoto ||
-        userData?.profile?.photoURL ||
-        currentUser?.photoURL
-    );
-    if (!hasPhoto && userData?.role !== 'admin') {
-      toast.error('📸 Profile photo is mandatory to book a seat. Please upload your profile photo first.', {
-        duration: 5000,
+    // Check missing profile fields
+    const missing = getMissingFields ? getMissingFields() : [];
+    if (missing.length > 0 && userData?.role !== 'admin') {
+      const fieldNames = missing.map((m) => `${m.icon} ${m.label}`).join(", ");
+      toast.error(`⚠️ Please complete the following required profile details before booking a seat:\n${fieldNames}`, {
+        duration: 6000,
       });
-      navigate('/profile', { state: { highlightPhoto: true } });
+      navigate('/profile', { state: { missingFields: missing } });
       return;
     }
     

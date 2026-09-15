@@ -113,7 +113,7 @@ const StudentTable = ({
   return (
     <div className="w-full overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <table className="w-full text-left text-xs border-collapse">
-        <thead className="bg-gray-100 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+        <thead className="bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
           <tr>
             <th className="px-3 py-3 font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase border-r border-gray-200 dark:border-gray-700">
               #

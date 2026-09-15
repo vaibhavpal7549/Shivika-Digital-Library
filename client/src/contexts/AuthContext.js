@@ -104,6 +104,13 @@ export function AuthProvider({ children }) {
   const sessionCheckIntervalRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
   const currentSessionIdRef = useRef(sessionId);
+  const isCreatingSessionRef = useRef(false);
+  const isInvalidatingRef = useRef(false);
+
+  // Keep currentSessionIdRef in sync with state
+  useEffect(() => {
+    currentSessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   // ============================================
   // SESSION MANAGEMENT FUNCTIONS
@@ -114,6 +121,7 @@ export function AuthProvider({ children }) {
    * Invalidates any existing sessions (single-session enforcement)
    */
   const createSession = useCallback(async (userId) => {
+    isCreatingSessionRef.current = true;
     const newSessionId = generateSessionId();
     const deviceInfo = getDeviceInfo();
     const sessionData = {
@@ -124,12 +132,7 @@ export function AuthProvider({ children }) {
       isActive: true,
     };
 
-    setSessionId(newSessionId);
     currentSessionIdRef.current = newSessionId;
-    setActiveSessionInfo(sessionData);
-    setSessionValid(true);
-    setSessionBlocked(false);
-    setBlockReason(null);
 
     try {
       sessionStorage.setItem('auth_session_id', newSessionId);
@@ -138,13 +141,24 @@ export function AuthProvider({ children }) {
     }
     
     try {
-      // Use set / transaction to record session in RTDB
+      // Use set to record session in RTDB before updating state
       const sessionRef = ref(database, `sessions/${userId}`);
       await set(sessionRef, sessionData);
       console.log('✅ Session created in RTDB:', newSessionId.slice(-8));
     } catch (error) {
       console.warn('⚠️ RTDB session sync failed (non-fatal):', error.message);
     }
+
+    setSessionId(newSessionId);
+    setActiveSessionInfo(sessionData);
+    setSessionValid(true);
+    setSessionBlocked(false);
+    setBlockReason(null);
+
+    // Release creation lock after 1.5s to allow RTDB writes to settle
+    setTimeout(() => {
+      isCreatingSessionRef.current = false;
+    }, 1500);
 
     return newSessionId;
   }, []);
@@ -154,7 +168,7 @@ export function AuthProvider({ children }) {
    * Returns true if session is valid, false if invalidated
    */
   const validateSession = useCallback(async (userId, currentSessionId) => {
-    if (!userId || !currentSessionId) return false;
+    if (!userId || !currentSessionId) return true;
     
     try {
       const sessionRef = ref(database, `sessions/${userId}`);
@@ -162,17 +176,17 @@ export function AuthProvider({ children }) {
       const storedSession = snapshot.val();
       
       if (!storedSession) {
-        console.warn('⚠️ No session found in database');
-        return false;
+        console.warn('⚠️ No session found in database during validation - maintaining session');
+        return true;
       }
       
       if (storedSession.sessionId !== currentSessionId) {
-        console.warn('⚠️ Session invalidated - new login detected');
+        console.warn('⚠️ Session invalidated - new login detected on another device');
         return false;
       }
       
       // Check for session timeout (inactivity)
-      const lastActivity = new Date(storedSession.lastActivity).getTime();
+      const lastActivity = storedSession.lastActivity ? new Date(storedSession.lastActivity).getTime() : Date.now();
       const timeSinceActivity = Date.now() - lastActivity;
       
       if (timeSinceActivity > SESSION_TIMEOUT_MS) {
@@ -182,8 +196,8 @@ export function AuthProvider({ children }) {
       
       return true;
     } catch (error) {
-      console.error('❌ Session validation error:', error);
-      return false;
+      console.error('❌ Session validation error (allowing session):', error);
+      return true;
     }
   }, []);
 
@@ -253,12 +267,10 @@ export function AuthProvider({ children }) {
    */
   const handleSessionInvalidation = useCallback(async (reason = 'Session invalidated') => {
     // Prevent duplicate calls
-    if (sessionCheckIntervalRef.current === 'invalidating') {
+    if (isInvalidatingRef.current) {
       return;
     }
-    
-    // Mark as invalidating
-    sessionCheckIntervalRef.current = 'invalidating';
+    isInvalidatingRef.current = true;
     
     setSessionValid(false);
     setSessionBlocked(true);
@@ -269,15 +281,23 @@ export function AuthProvider({ children }) {
       clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = null;
     }
+    if (sessionCheckIntervalRef.current) {
+      clearInterval(sessionCheckIntervalRef.current);
+      sessionCheckIntervalRef.current = null;
+    }
     
-    // Show notification (only once due to guard above)
-    toast.error(`🔒 ${reason}`, { duration: 5000 });
+    // Show single notification using toast ID guard
+    toast.error(`🔒 ${reason}`, { id: 'session-invalidated-toast', duration: 5000 });
     
     // Sign out the user
     try {
       await signOut(auth);
     } catch (error) {
       console.error('❌ Error signing out after session invalidation:', error);
+    } finally {
+      setTimeout(() => {
+        isInvalidatingRef.current = false;
+      }, 3000);
     }
   }, []);
 
@@ -313,11 +333,21 @@ export function AuthProvider({ children }) {
     // Listen for real-time session changes
     const sessionRef = ref(database, `sessions/${currentUser.uid}`);
     const unsubscribeSession = onValue(sessionRef, (snapshot) => {
+      if (isCreatingSessionRef.current) return;
+
       const storedSession = snapshot.val();
       
       if (!storedSession) {
-        // Session was deleted (logged out from another location)
-        handleSessionInvalidation('Your session was ended');
+        if (currentSessionIdRef.current) {
+          const sessionData = {
+            sessionId: currentSessionIdRef.current,
+            createdAt: new Date().toISOString(),
+            lastActivity: new Date().toISOString(),
+            deviceInfo: getDeviceInfo(),
+            isActive: true,
+          };
+          set(ref(database, `sessions/${currentUser.uid}`), sessionData).catch(() => {});
+        }
         return;
       }
       
@@ -374,13 +404,11 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setCurrentUser(user);
-        // Don't create session here - it's created during login
-        // This handles page refresh - validate existing session
-        if (currentSessionIdRef.current) {
-          const isValid = await validateSession(user.uid, currentSessionIdRef.current);
-          if (!isValid) {
-            // Session invalid on page refresh - need to re-login
-            setSessionValid(false);
+        if (!currentSessionIdRef.current) {
+          try {
+            await createSession(user.uid);
+          } catch (e) {
+            console.warn('Auto create session error:', e);
           }
         }
       } else {
@@ -396,7 +424,7 @@ export function AuthProvider({ children }) {
     });
 
     return unsubscribe;
-  }, [validateSession]);
+  }, [createSession]);
 
   // ============================================
   // AUTHENTICATION FUNCTIONS

@@ -169,72 +169,81 @@ exports.bookSeat = async (req, res) => {
       });
     }
 
-    // Find seat
-    let seat = await Seat.findOne({ seatNumber: seatNum });
-
-    // Create seat if it doesn't exist
-    if (!seat) {
-      seat = new Seat({
-        seatNumber: seatNum,
-        zone:
-          seatNum <= 15 ? "A" : seatNum <= 30 ? "B" : seatNum <= 45 ? "C" : "D",
-      });
-    }
-
-    // Check if seat is available
-    if (seat.isBooked && !seat.isExpired) {
-      return res.status(400).json({
-        success: false,
-        error: "Seat is already booked",
-      });
-    }
-
     // Calculate dates
     const bookingDate = new Date();
     const expiryDate = new Date();
     expiryDate.setMonth(expiryDate.getMonth() + months);
 
+    const paymentDeadline = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+
     const nextDueDate = new Date();
     nextDueDate.setMonth(nextDueDate.getMonth() + months);
 
-    // Book the seat
-    await seat.book(user, shift, months);
+    // ATOMIC BOOKING: Use findOneAndUpdate to prevent double-booking race condition
+    // Only books if seat is available OR expired (atomic read+check+write)
+    const seat = await Seat.findOneAndUpdate(
+      {
+        seatNumber: seatNum,
+        $or: [
+          { isBooked: false },
+          { isBooked: true, expiryDate: { $lt: new Date() } } // Expired seats
+        ]
+      },
+      {
+        $set: {
+          isBooked: true,
+          bookedBy: user._id,
+          bookedByFirebaseUid: user.firebaseUid,
+          bookingDate,
+          expiryDate,
+          shift,
+          status: 'booked',
+          displayStatus: 'red',
+          months,
+          lastPaymentId: paymentId || null
+        },
+        $push: {
+          bookingHistory: {
+            userId: user._id,
+            firebaseUid: user.firebaseUid,
+            bookedAt: bookingDate
+          }
+        }
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    if (!seat) {
+      // This shouldn't happen with upsert, but handle edge cases
+      return res.status(409).json({
+        success: false,
+        error: "Seat is already booked by another user",
+      });
+    }
 
     // Update user's seat info
     user.seat = {
       seatNumber: seatNum,
       seatStatus: "active",
+      bookingStatus: "pending_payment",
+      paymentDeadline,
       libraryName: "Shivika Digital Library",
       shift,
       bookingDate,
       expiryDate,
     };
 
-    // Update user's payment info
+    user.membershipStatus = "active";
     user.payment.currentPlan = "monthly";
-    user.payment.paymentStatus = "paid";
+    user.payment.paymentStatus = "pending";
     user.payment.nextDueDate = nextDueDate;
 
-    // Mark for sheets sync (REMOVED)
-    // user.sheetsSync = { ... };
-
     await user.save();
-
-    // Link payment if provided
-    if (paymentId) {
-      seat.lastPaymentId = paymentId;
-      await seat.save();
-    }
 
     console.log(`✅ Seat ${seatNum} booked for ${user.fullName}`);
 
     // Sync to Firebase (Real-time update)
     await syncSeatToFirebase(seat);
-
-    // Sync to Google Sheets (background)
-    // googleSheetsService.syncUser(user).catch(err => {
-    //   console.error('⚠️  Sheets sync error:', err.message);
-    // });
 
     // Emit socket event for real-time UI update
     const io = req.app.get("io");

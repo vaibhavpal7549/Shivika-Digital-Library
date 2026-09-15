@@ -64,6 +64,15 @@ const SeatDetailsSchema = new mongoose.Schema(
       enum: ["active", "released", "expired", null],
       default: null,
     },
+    bookingStatus: {
+      type: String,
+      enum: ["confirmed", "pending_payment", "expired", "released", null],
+      default: "confirmed",
+    },
+    paymentDeadline: {
+      type: Date,
+      default: null,
+    },
     libraryName: {
       type: String,
       default: "Shivika Digital Library",
@@ -234,6 +243,23 @@ const UserSchema = new mongoose.Schema(
       default: "student",
     },
 
+    membershipStatus: {
+      type: String,
+      enum: ["active", "inactive", "expired", "pending"],
+      default: "active",
+      index: true,
+    },
+
+    deactivatedAt: {
+      type: Date,
+      default: null,
+    },
+
+    deactivationReason: {
+      type: String,
+      default: null,
+    },
+
     isActive: {
       type: Boolean,
       default: true,
@@ -289,6 +315,8 @@ const UserSchema = new mongoose.Schema(
 // Note: email and phone both have unique:true which auto-creates unique indexes
 UserSchema.index({ "seat.seatNumber": 1 });
 UserSchema.index({ "seat.seatStatus": 1 });
+UserSchema.index({ "seat.bookingStatus": 1 });
+UserSchema.index({ "seat.paymentDeadline": 1 });
 UserSchema.index({ "payment.paymentStatus": 1 });
 UserSchema.index({ "payment.nextDueDate": 1 });
 UserSchema.index({ createdAt: -1 });
@@ -317,9 +345,35 @@ UserSchema.virtual("hasActiveSeat").get(function () {
   return (
     this.seat &&
     this.seat.seatNumber !== null &&
-    this.seat.seatStatus === "active" &&
-    this.seat.expiryDate &&
-    new Date(this.seat.expiryDate) > new Date()
+    (this.seat.seatStatus === "active" || this.seat.bookingStatus === "pending_payment")
+  );
+});
+
+// Calculate total months paid
+UserSchema.virtual("monthsPaid").get(function () {
+  if (!this.paymentHistory || this.paymentHistory.length === 0) return 0;
+  return this.paymentHistory
+    .filter((p) => p.status === "success")
+    .reduce((sum, p) => sum + (p.monthsPaidFor || 1), 0);
+});
+
+// Paid-through date
+UserSchema.virtual("paidThroughDate").get(function () {
+  if (this.payment && this.payment.nextDueDate) {
+    return this.payment.nextDueDate;
+  }
+  if (this.seat && this.seat.expiryDate) {
+    return this.seat.expiryDate;
+  }
+  return null;
+});
+
+// Check if payment is overdue
+UserSchema.virtual("isPaymentOverdue").get(function () {
+  if (!this.payment.nextDueDate) return false;
+  return (
+    new Date(this.payment.nextDueDate) < new Date() &&
+    this.payment.paymentStatus !== "paid"
   );
 });
 

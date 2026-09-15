@@ -351,6 +351,11 @@ exports.verifyPayment = async (req, res) => {
 
       // ===== STEP 5: UPDATE USER STATS =====
       user.payment.paymentStatus = 'paid';
+      user.membershipStatus = 'active';
+      if (user.seat) {
+        user.seat.bookingStatus = 'confirmed';
+        user.seat.seatStatus = 'active';
+      }
       user.payment.totalAmountPaid = (user.payment.totalAmountPaid || 0) + payment.amount;
       
       const nextDueDate = new Date();
@@ -928,12 +933,17 @@ exports.recordManualPayment = async (req, res) => {
           expiryDate,
           dailyHours // Save dailyHours to user.seat
         };
+
+        // Sync booked seat to Firebase
+        await syncSeatToFirebase(seat);
       }
     } else if (user.hasActiveSeat) {
       // Extend booking
       const seat = await Seat.findOne({ seatNumber: user.seat.seatNumber });
       if (seat) {
         await seat.extendBooking(months, dailyHours); // Pass dailyHours to seat.extendBooking
+        // Sync extended seat to Firebase
+        await syncSeatToFirebase(seat);
       }
 
       user.seat.expiryDate = new Date(user.seat.expiryDate);

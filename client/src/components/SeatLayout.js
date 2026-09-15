@@ -24,7 +24,7 @@ export default function SeatLayout({ seats }) {
   const [userSeatNumber, setUserSeatNumber] = useState(null);
   const totalSeats = 60;
 
-  // Find user's seat
+  // Find user's seat from Firebase real-time data
   useEffect(() => {
     if (!currentUser) return;
 
@@ -32,7 +32,8 @@ export default function SeatLayout({ seats }) {
     const unsubscribe = onValue(seatsRef, (snapshot) => {
       const seatsData = snapshot.val() || {};
       for (const [seatNum, seatData] of Object.entries(seatsData)) {
-        if (seatData.userId === currentUser.uid && seatData.status === 'booked') {
+        // Match against bookedBy field (Firebase UID) written by the sync service
+        if (seatData.bookedBy === currentUser.uid && seatData.isBooked) {
           setUserSeatNumber(parseInt(seatNum));
           return;
         }

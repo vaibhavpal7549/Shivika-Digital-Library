@@ -27,8 +27,9 @@ export default function SeatViewer() {
   const { connected, lastSeatUpdate } = useSocket();
   const [seats, setSeats] = useState({});
   const [loading, setLoading] = useState(true);
+  const apiLoadedRef = React.useRef(false);
 
-  // Initial load from MongoDB (source of truth)
+  // Initial load from MongoDB API (source of truth baseline)
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -37,31 +38,46 @@ export default function SeatViewer() {
         if (isMounted && response.data?.success) {
           setSeats(response.data.seats || {});
           setLoading(false);
+          apiLoadedRef.current = true;
         }
       } catch (error) {
         console.error('Error fetching seats from API:', error);
-        // Fallback to Firebase listener will still populate
+        // Firebase listener below will still provide data
+        setLoading(false);
       }
     })();
     return () => { isMounted = false; };
   }, []);
 
-  // Firebase real-time listener (cache/updates)
-  // DISABLED: Backend does not sync to Firebase, so this was overwriting valid API data with empty data.
-  /*
+  // Firebase real-time listener (merges on top of API data for live updates)
   useEffect(() => {
+    if (!database) return;
+
     const seatsRef = ref(database, 'seats');
     const unsubscribe = onValue(seatsRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      setSeats(data);
-      setLoading(false);
+      const firebaseData = snapshot.val();
+
+      // Only merge if we have actual Firebase data
+      if (firebaseData && Object.keys(firebaseData).length > 0) {
+        setSeats(prevSeats => {
+          // If API hasn't loaded yet, use Firebase data directly
+          if (!apiLoadedRef.current) {
+            return firebaseData;
+          }
+          // Merge: Firebase real-time data takes priority for seat status
+          return { ...prevSeats, ...firebaseData };
+        });
+        setLoading(false);
+      }
+    }, (err) => {
+      console.warn('Firebase seats listener error:', err.message);
+      // Non-fatal: API data is still available
     });
 
     return () => unsubscribe();
   }, []);
-  */
 
-  // Socket.IO updates (secondary, for instant cross-user updates)
+  // Socket.IO updates (tertiary, for instant cross-user notifications)
   useEffect(() => {
     if (lastSeatUpdate) {
       // Update seats based on socket event
@@ -70,22 +86,40 @@ export default function SeatViewer() {
         
         if (lastSeatUpdate.type === 'SEAT_BOOKED') {
           newSeats[lastSeatUpdate.seatNumber] = {
+            ...newSeats[lastSeatUpdate.seatNumber],
             status: 'booked',
-            userId: lastSeatUpdate.userId,
+            isBooked: true,
+            bookedBy: lastSeatUpdate.userId,
             userEmail: lastSeatUpdate.userEmail,
             bookedAt: lastSeatUpdate.bookedAt
           };
         } else if (lastSeatUpdate.type === 'SEAT_RELEASED') {
-          delete newSeats[lastSeatUpdate.seatNumber];
-        } else if (lastSeatUpdate.type === 'SEAT_CHANGED') {
-          // Remove old seat
-          if (lastSeatUpdate.oldSeatNumber) {
-            delete newSeats[lastSeatUpdate.oldSeatNumber];
+          if (newSeats[lastSeatUpdate.seatNumber]) {
+            newSeats[lastSeatUpdate.seatNumber] = {
+              ...newSeats[lastSeatUpdate.seatNumber],
+              status: 'available',
+              isBooked: false,
+              bookedBy: null,
+              bookedByName: null
+            };
           }
-          // Add new seat
+        } else if (lastSeatUpdate.type === 'SEAT_CHANGED') {
+          // Release old seat
+          if (lastSeatUpdate.oldSeatNumber && newSeats[lastSeatUpdate.oldSeatNumber]) {
+            newSeats[lastSeatUpdate.oldSeatNumber] = {
+              ...newSeats[lastSeatUpdate.oldSeatNumber],
+              status: 'available',
+              isBooked: false,
+              bookedBy: null,
+              bookedByName: null
+            };
+          }
+          // Book new seat
           newSeats[lastSeatUpdate.newSeatNumber] = {
+            ...newSeats[lastSeatUpdate.newSeatNumber],
             status: 'booked',
-            userId: lastSeatUpdate.userId,
+            isBooked: true,
+            bookedBy: lastSeatUpdate.userId,
             userEmail: lastSeatUpdate.userEmail
           };
         }

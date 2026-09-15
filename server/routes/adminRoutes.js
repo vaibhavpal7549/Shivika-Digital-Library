@@ -31,6 +31,18 @@ router.use(requireFirebaseAuth, requireAdmin);
 // Get all users
 router.get("/users", adminController.getAllUsers);
 
+// Get current students
+router.get("/current-students", adminController.getCurrentStudents);
+
+// Get past students
+router.get("/past-students", adminController.getPastStudents);
+
+// Get enhanced stats (8 summary cards)
+router.get("/enhanced-stats", adminController.getEnhancedStats);
+
+// Deactivate student (move to past student)
+router.put("/student/:id/deactivate", adminController.deactivateStudent);
+
 // Get dashboard stats
 router.get("/stats", adminController.getDashboardStats);
 

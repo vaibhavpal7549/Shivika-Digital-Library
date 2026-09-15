@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const { User, Seat, Payment } = require('../models');
-// const googleSheetsService = require('../services/googleSheetsService');
+const adminController = require('../controllers/adminController');
+const { syncSeatToFirebase, reconcileAllSeats } = require('../services/firebaseSyncService');
 
 /**
  * ============================================
@@ -10,8 +11,8 @@ const { User, Seat, Payment } = require('../models');
  * Automated tasks for:
  * 1. Auto-release expired seats
  * 2. Mark overdue payments
- * 3. Sync pending users to Google Sheets
- * 4. Send expiry notifications (future)
+ * 3. 5-day pending payment expiration
+ * 4. Sync pending users to Google Sheets
  */
 
 let io = null;
@@ -25,10 +26,20 @@ const initializeJobs = (socketIO) => {
   
   console.log('⏰ Initializing scheduled jobs...');
 
-  // Job 1: Auto-release expired seats (runs every hour)
+  // Run 5-day expiry check immediately on startup
+  adminController.expirePendingBookings();
+
+  // Job 1: Auto-release expired seats & check 5-day payment deadlines (runs every hour)
   cron.schedule('0 * * * *', async () => {
-    console.log('🔄 Running: Auto-release expired seats');
+    console.log('🔄 Running: Auto-release expired seats & 5-day payment deadline check');
     await autoReleaseExpiredSeats();
+    await adminController.expirePendingBookings();
+  });
+
+  // Job 1b: Reconcile MongoDB → Firebase (runs every 6 hours)
+  cron.schedule('0 */6 * * *', async () => {
+    console.log('🔄 Running: MongoDB → Firebase reconciliation');
+    await reconcileAllSeats(Seat);
   });
 
   // Job 2: Mark overdue payments (runs daily at midnight)
@@ -49,10 +60,9 @@ const initializeJobs = (socketIO) => {
     await highlightExpiredInSheets();
   });
 
-  // Job 5: Clean up stale data (runs weekly on Sunday at 3 AM)
+  // Job 5: Clean up stale data (Disabled per requirements to preserve historical records)
   cron.schedule('0 3 * * 0', async () => {
-    console.log('🔄 Running: Weekly cleanup');
-    await weeklyCleanup();
+    console.log('ℹ️ Weekly cleanup skipped to preserve historical records');
   });
 
   console.log('✅ Scheduled jobs initialized');
@@ -79,6 +89,9 @@ const autoReleaseExpiredSeats = async () => {
 
         // Release the seat
         await seat.release('expired');
+
+        // Sync released seat to Firebase
+        await syncSeatToFirebase(seat);
 
         // Update user if found
         if (user) {
@@ -179,42 +192,11 @@ const highlightExpiredInSheets = async () => {
 };
 
 /**
- * Weekly cleanup of stale data
- * Runs weekly to clean up old records and optimize database
+ * Weekly cleanup (Disabled to preserve historical student and payment records)
  */
 const weeklyCleanup = async () => {
-  try {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-
-    // 1. Clean up old pending payments (never completed)
-    const deletedPayments = await Payment.deleteMany({
-      status: 'pending',
-      createdAt: { $lt: thirtyDaysAgo }
-    });
-
-    // 2. Clean up old booking history in seats (keep last 90 days)
-    await Seat.updateMany(
-      {},
-      {
-        $pull: {
-          bookingHistory: {
-            bookedAt: { $lt: ninetyDaysAgo }
-          }
-        }
-      }
-    );
-
-    console.log(`✅ Weekly cleanup: Removed ${deletedPayments.deletedCount} stale payments`);
-
-    return {
-      deletedPayments: deletedPayments.deletedCount
-    };
-
-  } catch (error) {
-    console.error('❌ Weekly cleanup failed:', error);
-    return null;
-  }
+  console.log('ℹ️ Historical preservation active: Weekly cleanup skipped');
+  return { deletedPayments: 0 };
 };
 
 /**
@@ -244,6 +226,7 @@ const getJobStatus = () => {
   return {
     jobs: [
       { name: 'autoReleaseExpiredSeats', schedule: 'Every hour', description: 'Release expired seats' },
+      { name: 'reconcileFirebaseSeats', schedule: 'Every 6 hours', description: 'Reconcile MongoDB → Firebase seats' },
       { name: 'markOverduePayments', schedule: 'Daily at midnight', description: 'Mark overdue payments' },
       { name: 'syncPendingToSheets', schedule: 'Every 15 minutes', description: 'Sync to Google Sheets' },
       { name: 'highlightExpiredInSheets', schedule: 'Daily at 6 AM', description: 'Highlight expired in sheets' },

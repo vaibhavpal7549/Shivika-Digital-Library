@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
+import { useUser } from '../contexts/UserContext';
 import { database } from '../firebase/config';
 import { ref, onValue } from 'firebase/database';
 import toast from 'react-hot-toast';
@@ -35,6 +36,12 @@ export default function Dashboard() {
     getLastActivity 
   } = useAuth();
   const { isProfileComplete, profile, bookedSeat, hasBookedSeat } = useProfile();
+  const { userData } = useUser();
+
+  const isAdmin = userData?.role === 'admin' || profile?.role === 'admin';
+  const displayName = isAdmin
+    ? 'Admin Administrator'
+    : (profile?.fullName || userData?.fullName || userData?.name || currentUser?.displayName || (currentUser?.email ? currentUser.email.split('@')[0] : 'User'));
   const navigate = useNavigate();
   const [seats, setSeats] = useState({});
   const [selectedHours, setSelectedHours] = useState(4);
@@ -126,7 +133,7 @@ export default function Dashboard() {
                 Dashboard
               </h1>
               <p className="text-sm md:text-base text-gray-600 mt-2">
-                Welcome back, <span className="font-semibold text-gray-800">{currentUser?.email?.split('@')[0] || 'User'}</span> 👋
+                Welcome back, <span className="font-semibold text-gray-800">{displayName}</span> 👋
               </p>
             </div>
             

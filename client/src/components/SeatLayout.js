@@ -24,7 +24,23 @@ export default function SeatLayout({ seats }) {
   const { isProfileComplete, hasPendingDues, bookedSeat, hasBookedSeat, getMissingFields } = useProfile();
   const { userData } = useUser();
   const [userSeatNumber, setUserSeatNumber] = useState(null);
+  const [showGuideModal, setShowGuideModal] = useState(false);
   const totalSeats = 60;
+
+  // Keyboard accessibility: Close guide modal on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setShowGuideModal(false);
+      }
+    };
+    if (showGuideModal) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showGuideModal]);
 
   // Find user's seat from Firebase real-time data
   useEffect(() => {
@@ -151,7 +167,17 @@ export default function SeatLayout({ seats }) {
       </div>
       
       {/* Legend - Responsive and wrappable */}
-      <div className="flex justify-center gap-4 sm:gap-6 mb-6 sm:mb-8 flex-wrap px-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
+      <div className="flex justify-center items-center gap-3 sm:gap-6 mb-6 sm:mb-8 flex-wrap px-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
+        <button
+          type="button"
+          onClick={() => setShowGuideModal(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 shadow-sm active:scale-95 hover:shadow"
+          title="View Seat Booking Guide"
+        >
+          <span className="text-sm sm:text-base leading-none">ℹ️</span>
+          <span>Booking Guide</span>
+        </button>
+
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 bg-green-100 border-2 border-green-600 rounded-lg flex-shrink-0 animate-pulse"></div>
           <span className="text-sm font-medium text-gray-700">Available</span>
@@ -169,20 +195,6 @@ export default function SeatLayout({ seats }) {
       {/* Seat Grid - Fully responsive */}
       <div className="flex justify-center">
         <div className="inline-block">
-          {/* Grid with fixed columns for stability */}
-          <div className="grid gap-2 sm:gap-3" style={{
-            gridTemplateColumns: 'repeat(5, 1fr)', // Mobile default
-            '@media (min-width: 640px)': {
-              gridTemplateColumns: 'repeat(8, 1fr)', // Tablet
-            },
-            '@media (min-width: 1024px)': {
-              gridTemplateColumns: 'repeat(10, 1fr)', // Desktop
-            }
-          }}>
-            {/* We use a responsive class approach for grid columns instead of inline styles for media queries */}
-            <div className="hidden sm:hidden md:hidden lg:hidden"></div> {/* Hack to keep tailwind classes if needed, but we'll use className for grid */}
-          </div>
-          
           <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 sm:gap-3 md:gap-4">
             {Array.from({ length: totalSeats }, (_, i) => i + 1).map((seatNumber) =>
               renderSeat(seatNumber)
@@ -197,6 +209,97 @@ export default function SeatLayout({ seats }) {
           💡 Click on any <span className="font-bold text-green-600">Available</span> seat to proceed with booking
         </p>
       </div>
+
+      {/* Seat Booking Guide Popup Modal */}
+      {showGuideModal && (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setShowGuideModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-100 relative transform transition-all my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+              <h3 className="text-xl font-bold tracking-tight">Seat Booking Guide</h3>
+              <button
+                onClick={() => setShowGuideModal(false)}
+                className="text-white/80 hover:text-white hover:bg-white/20 rounded-full w-8 h-8 flex items-center justify-center font-bold text-lg transition-colors"
+                title="Close guide"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6 text-gray-700 text-sm">
+              {/* Fixed Monthly Plan */}
+              <div className="bg-blue-50/70 p-4.5 rounded-2xl border border-blue-100">
+                <div className="flex items-center gap-2 text-base font-bold text-blue-900 mb-2">
+                  <span>📚</span>
+                  <h4>Fixed Monthly Plan</h4>
+                </div>
+                <p className="text-gray-600 mb-3 text-sm leading-relaxed">
+                  Students enrolled in the Fixed Monthly Plan can study throughout the day without any time restrictions.
+                </p>
+                <div className="space-y-1.5 font-semibold text-sm text-blue-800">
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>Full-day library access</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>No hourly time limit</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hourly Plan */}
+              <div className="bg-indigo-50/70 p-4.5 rounded-2xl border border-indigo-100">
+                <div className="flex items-center gap-2 text-base font-bold text-indigo-900 mb-2">
+                  <span>⏱</span>
+                  <h4>Hourly Plan</h4>
+                </div>
+                <p className="text-gray-600 mb-3 text-sm leading-relaxed">
+                  Students enrolled in the Hourly Plan can use the library according to their selected time limit.
+                </p>
+                <div className="space-y-1.5 font-semibold text-sm text-indigo-800">
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>Time-based access</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600 font-bold">✓</span>
+                    <span>Time limit must be followed</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Important Note */}
+              <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200/80 flex items-start gap-3 text-amber-900">
+                <span className="text-xl flex-shrink-0 mt-0.5">⚠️</span>
+                <div>
+                  <p className="font-bold text-sm">Important:</p>
+                  <p className="text-sm text-amber-800 mt-0.5">
+                    Your access time depends on the plan selected during booking.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setShowGuideModal(false)}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow transition-all active:scale-95"
+              >
+                Close Guide
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
